@@ -1,0 +1,49 @@
+# Changes made to etc_position.py and etc_lookup.py (ETC scraping fixes).
+# This is a unified diff: lines starting with "-" are the OLD code, "+" the NEW code.
+# To undo a change, put the "-" lines back in place of the "+" lines.
+
+--- etc_position.py (old)
++++ etc_position.py (new)
+@@ -493,11 +493,7 @@
+ def _etc_block(kimberling_id: int) -> Optional[str]:
+     part = etc_lookup.get_part_number(kimberling_id)
+     page = etc_lookup._fetch_part_page(part, 15)
+-    start = page.find(f'<h3 id="X{kimberling_id}">')
+-    if start < 0:
+-        return None
+-    end = page.find('<h3 id="X', start + 10)
+-    return page[start: end if end > 0 else len(page)]
++    return etc_lookup.find_center_html(page, kimberling_id)
+ 
+ 
+ def _etc_name(block: str) -> str:
+@@ -506,24 +502,54 @@
+-def _etc_formula_lines(block: str) -> List[Tuple[str, str]]:
+-    """[(kind, text), ...] in page order."""
+-    head = block.split("</h3>", 1)[-1]
+-    cut = head.find("<p>")
+-    if cut >= 0:
+-        head = head[:cut]
+-    found = re.findall(
+-        r"(Barycentrics|Trilinears)(?:\s|&nbsp;)+(.*?)\s*(?:<br\s*/?>|$)", head, re.S
+-    )
+-    return [("bary" if k == "Barycentrics" else "tri", t) for k, t in found if t.strip()]
+-
+-
+-def _listed_lines(block: str) -> List[Tuple[int, int]]:
+-    """The {i, j} pairs from "X(n) lies on these lines: {i, j}, ..."."""
+-    m = re.search(r"lies on (?:these lines|the line)[^<:]*:?(.*?)<br>", block, re.S)
+-    if not m:
+-        return []
+-    return [(int(a), int(b)) for a, b in re.findall(r"\{(\d+),\s*(\d+)\}", m.group(1))]
++(new: _FORMULA_KEY_RE, _FORMULA_END_RE, a longer _etc_formula_lines, _LINES_RE and
++ a _listed_lines that also reads the bare "2,8  3,35" notation -- see etc_position.py)
+
+--- etc_lookup.py (old)
++++ etc_lookup.py (new)
+- _load_from_disk_cache: returned the cached page whatever it contained.
+- _save_to_disk_cache: wrote straight into part_N.html (a crash left a truncated page).
+- _fetch_part_page: no lock, timeout=timeout.
++ stub pages (no '<h3 id="X') older than 24 h are re-fetched, saves are atomic (temp file +
++ os.replace), one download per part at a time (threading.Lock), timeout=(5, timeout),
++ and a new find_center_html() shared with etc_position.py.

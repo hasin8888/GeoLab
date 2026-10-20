@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Triangle Construction</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root {
+    --ink: #1c2321;
+    --paper: #f6f4ee;
+    --line: #cfc9ba;
+    --accent: #2f5d50;
+    --accent-soft: #e4ede9;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Georgia', 'Iowan Old Style', serif;
+    background: var(--paper);
+    color: var(--ink);
+    display: flex;
+    min-height: 100vh;
+  }
+  #sidebar {
+    width: 300px;
+    flex-shrink: 0;
+    padding: 28px 24px;
+    border-right: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  h1 {
+    font-size: 1.3rem;
+    margin: 0 0 4px 0;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+  #sidebar p.hint {
+    margin: 0;
+    font-size: 0.88rem;
+    color: #5b5b52;
+    line-height: 1.5;
+  }
+  button {
+    font-family: inherit;
+    font-size: 0.85rem;
+    padding: 9px 14px;
+    border: 1px solid var(--ink);
+    background: var(--paper);
+    color: var(--ink);
+    cursor: pointer;
+    border-radius: 3px;
+  }
+  button:hover { background: var(--accent-soft); }
+  #clearBtn { align-self: flex-start; }
+
+  .readout {
+    border-top: 1px solid var(--line);
+    padding-top: 14px;
+    font-size: 0.85rem;
+  }
+  .readout h2 {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #7a7a70;
+    margin: 0 0 10px 0;
+    font-weight: 600;
+    font-family: -apple-system, sans-serif;
+  }
+  .vertex-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    font-variant-numeric: tabular-nums;
+  }
+  .dot {
+    width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
+  }
+  .measure-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 3px 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .measure-row span:first-child { color: #6b6b60; }
+
+  #centerToggle {
+    border-top: 1px solid var(--line);
+    padding-top: 14px;
+  }
+  #centerToggle h2 {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #7a7a70;
+    margin: 0 0 10px 0;
+    font-weight: 600;
+    font-family: -apple-system, sans-serif;
+  }
+  .center-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.85rem;
+    margin-bottom: 7px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .center-checkbox input { margin: 0; accent-color: var(--accent); }
+  .center-swatch { width: 9px; height: 9px; border-radius: 50%; }
+
+  #canvasWrap {
+    flex: 1;
+    position: relative;
+    background-color: #fdfcf9;
+    overflow: hidden;
+  }
+  canvas { display: block; cursor: crosshair; }
+
+  #status {
+    position: absolute;
+    top: 18px;
+    left: 24px;
+    font-family: -apple-system, sans-serif;
+    font-size: 0.8rem;
+    color: #6b6b60;
+    background: rgba(253, 252, 249, 0.85);
+    padding: 4px 10px;
+    border-radius: 3px;
+  }
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+  <div>
+    <a href="/" style="font:0.8rem -apple-system,sans-serif;color:var(--accent);text-decoration:none;">&larr; Home</a>
+    <h1 style="margin-top:8px;">Triangle Construction</h1>
+    <p class="hint">Click the canvas to place three points. Drag any point to reshape the triangle.</p>
+  </div>
+
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <button id="clearBtn">Clear</button>
+    <button id="exportPngBtn" disabled>Export PNG</button>
+    <button id="exportPdfBtn" disabled>Export PDF</button>
+  </div>
+
+  <div class="readout">
+    <h2>Vertices</h2>
+    <div id="vertexList"></div>
+  </div>
+
+  <div class="readout" id="measures" style="display:none;">
+    <h2>Measurements</h2>
+    <div class="measure-row"><span>Side a (BC)</span><span id="mA"></span></div>
+    <div class="measure-row"><span>Side b (CA)</span><span id="mB"></span></div>
+    <div class="measure-row"><span>Side c (AB)</span><span id="mC"></span></div>
+    <div class="measure-row"><span>Perimeter</span><span id="mPerim"></span></div>
+    <div class="measure-row"><span>Area</span><span id="mArea"></span></div>
+  </div>
+
+  <div id="centerToggle" style="display:none;">
+    <h2>Show center</h2>
+    <label class="center-checkbox">
+      <input type="checkbox" id="chkIncenter">
+      <span class="center-swatch" style="background:#b3541e;"></span> Incenter X(1)
+    </label>
+    <label class="center-checkbox">
+      <input type="checkbox" id="chkCentroid">
+      <span class="center-swatch" style="background:#2f5d50;"></span> Centroid X(2)
+    </label>
+    <label class="center-checkbox">
+      <input type="checkbox" id="chkCircumcenter">
+      <span class="center-swatch" style="background:#3a5a9b;"></span> Circumcenter X(3)
+    </label>
+    <label class="center-checkbox">
+      <input type="checkbox" id="chkOrthocenter">
+      <span class="center-swatch" style="background:#8a4b8f;"></span> Orthocenter X(4)
+    </label>
+  </div>
+</div>
+
+<div id="canvasWrap">
+  <div id="status">Click to place point 1 of 3</div>
+  <canvas id="cv"></canvas>
+</div>
+
+<script>
+const canvas = document.getElementById('cv');
+const ctx = canvas.getContext('2d');
+const wrap = document.getElementById('canvasWrap');
+const statusEl = document.getElementById('status');
+const vertexListEl = document.getElementById('vertexList');
+const measuresEl = document.getElementById('measures');
+const centerToggleEl = document.getElementById('centerToggle');
+
+let points = [];      // screen-space {x,y} for placed vertices, in click order A,B,C
+let dragIndex = -1;
+
+const pointColors = ['#b3541e', '#2f5d50', '#3a5a9b'];
+const pointLabels = ['A', 'B', 'C'];
+
+const centerColors = {
+  incenter: '#b3541e',
+  centroid: '#2f5d50',
+  circumcenter: '#3a5a9b',
+  orthocenter: '#8a4b8f',
+};
+
+function resizeCanvas() {
+  canvas.width = wrap.clientWidth;
+  canvas.height = wrap.clientHeight;
+  draw();
+}
+window.addEventListener('resize', resizeCanvas);
+
+function dist(p, q) {
+  return Math.hypot(p.x - q.x, p.y - q.y);
+}
+
+function triangleArea(A, B, C) {
+  return Math.abs((B.x - A.x) * (C.y - A.y) - (C.x - A.x) * (B.y - A.y)) / 2;
+}
+
+function computeCenters(A, B, C) {
+  // a = |BC|, b = |CA|, c = |AB|  (standard opposite-side convention)
+  const a = dist(B, C), b = dist(C, A), c = dist(A, B);
+
+  const incenter = {
+    x: (a * A.x + b * B.x + c * C.x) / (a + b + c),
+    y: (a * A.y + b * B.y + c * C.y) / (a + b + c),
+  };
+  const centroid = {
+    x: (A.x + B.x + C.x) / 3,
+    y: (A.y + B.y + C.y) / 3,
+  };
+
+  // Circumcenter via perpendicular bisector intersection.
+  const D = 2 * (A.x * (B.y - C.y) + B.x * (C.y - A.y) + C.x * (A.y - B.y));
+  let circumcenter = null, orthocenter = null;
+  if (Math.abs(D) > 1e-9) {
+    const ux = ((A.x ** 2 + A.y ** 2) * (B.y - C.y) +
+                (B.x ** 2 + B.y ** 2) * (C.y - A.y) +
+                (C.x ** 2 + C.y ** 2) * (A.y - B.y)) / D;
+    const uy = ((A.x ** 2 + A.y ** 2) * (C.x - B.x) +
+                (B.x ** 2 + B.y ** 2) * (A.x - C.x) +
+                (C.x ** 2 + C.y ** 2) * (B.x - A.x)) / D;
+    circumcenter = { x: ux, y: uy };
+    // Orthocenter: H = A + B + C - 2*Circumcenter (Euler line vector relation)
+    orthocenter = {
+      x: A.x + B.x + C.x - 2 * ux,
+      y: A.y + B.y + C.y - 2 * uy,
+    };
+  }
+
+  return { incenter, centroid, circumcenter, orthocenter, sides: { a, b, c } };
+}
+
+function fmt(n) { return n.toFixed(2); }
+
+function updateSidebar() {
+  vertexListEl.innerHTML = '';
+  points.forEach((p, i) => {
+    const row = document.createElement('div');
+    row.className = 'vertex-row';
+    row.innerHTML = `<span class="dot" style="background:${pointColors[i]}"></span>` +
+      `${pointLabels[i]}  (${Math.round(p.x)}, ${Math.round(p.y)})`;
+    vertexListEl.appendChild(row);
+  });
+
+  if (points.length < 3) {
+    statusEl.textContent = `Click to place point ${points.length + 1} of 3`;
+    measuresEl.style.display = 'none';
+    centerToggleEl.style.display = 'none';
+    if (typeof updateExportButtons === 'function') updateExportButtons();
+    return;
+  }
+
+  statusEl.textContent = 'Drag any point to reshape';
+  const [A, B, C] = points;
+  const { sides } = computeCenters(A, B, C);
+  const area = triangleArea(A, B, C);
+
+  measuresEl.style.display = 'block';
+  centerToggleEl.style.display = 'block';
+  document.getElementById('mA').textContent = fmt(sides.a);
+  document.getElementById('mB').textContent = fmt(sides.b);
+  document.getElementById('mC').textContent = fmt(sides.c);
+  document.getElementById('mPerim').textContent = fmt(sides.a + sides.b + sides.c);
+  document.getElementById('mArea').textContent = fmt(area);
+  if (typeof updateExportButtons === 'function') updateExportButtons();
+}
+
+function drawPoint(p, color, label) {
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = '#fdfcf9';
+  ctx.stroke();
+
+  ctx.font = '13px -apple-system, sans-serif';
+  ctx.fillStyle = '#1c2321';
+  ctx.fillText(label, p.x + 10, p.y - 8);
+}
+
+function drawCenterMarker(p, color, label) {
+  ctx.save();
+  ctx.beginPath();
+  const s = 5;
+  ctx.moveTo(p.x - s, p.y);
+  ctx.lineTo(p.x + s, p.y);
+  ctx.moveTo(p.x, p.y - s);
+  ctx.lineTo(p.x, p.y + s);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = color;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = color;
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.font = 'italic 12px Georgia, serif';
+  ctx.fillStyle = color;
+  ctx.fillText(label, p.x + 11, p.y + 4);
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (points.length >= 2) {
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+    if (points.length === 3) ctx.closePath();
+    ctx.strokeStyle = '#1c2321';
+    ctx.lineWidth = 1.6;
+    ctx.stroke();
+
+    if (points.length === 3) {
+      ctx.fillStyle = 'rgba(47, 93, 80, 0.06)';
+      ctx.fill();
+    }
+  }
+
+  points.forEach((p, i) => drawPoint(p, pointColors[i], pointLabels[i]));
+
+  if (points.length === 3) {
+    const [A, B, C] = points;
+    const { incenter, centroid, circumcenter, orthocenter } = computeCenters(A, B, C);
+
+    if (document.getElementById('chkIncenter').checked) {
+      drawCenterMarker(incenter, centerColors.incenter, 'X(1) Incenter');
+    }
+    if (document.getElementById('chkCentroid').checked) {
+      drawCenterMarker(centroid, centerColors.centroid, 'X(2) Centroid');
+    }
+    if (document.getElementById('chkCircumcenter').checked && circumcenter) {
+      drawCenterMarker(circumcenter, centerColors.circumcenter, 'X(3) Circumcenter');
+    }
+    if (document.getElementById('chkOrthocenter').checked && orthocenter) {
+      drawCenterMarker(orthocenter, centerColors.orthocenter, 'X(4) Orthocenter');
+    }
+  }
+}
+
+function pointNear(pos, p, radius = 12) {
+  return dist(pos, p) <= radius;
+}
+
+function getMousePos(evt) {
+  const rect = canvas.getBoundingClientRect();
+  return { x: evt.clientX - rect.left, y: evt.clientY - rect.top };
+}
+
+canvas.addEventListener('mousedown', (evt) => {
+  const pos = getMousePos(evt);
+  const hitIndex = points.findIndex((p) => pointNear(pos, p));
+
+  if (hitIndex !== -1) {
+    dragIndex = hitIndex;
+    return;
+  }
+
+  if (points.length < 3) {
+    points.push(pos);
+    updateSidebar();
+    draw();
+  }
+});
+
+canvas.addEventListener('mousemove', (evt) => {
+  if (dragIndex === -1) return;
+  points[dragIndex] = getMousePos(evt);
+  updateSidebar();
+  draw();
+});
+
+window.addEventListener('mouseup', () => { dragIndex = -1; });
+
+document.getElementById('clearBtn').addEventListener('click', () => {
+  points = [];
+  updateSidebar();
+  draw();
+});
+
+// ------------------------------------------------------------------ export
+const exportPngBtn = document.getElementById('exportPngBtn');
+const exportPdfBtn = document.getElementById('exportPdfBtn');
+
+function updateExportButtons() {
+  const ready = points.length === 3;
+  exportPngBtn.disabled = !ready;
+  exportPdfBtn.disabled = !ready;
+}
+
+// Renders the current triangle onto an off-screen canvas with a solid
+// white background (the on-page canvas itself is transparent; the grid
+// is a CSS background on the wrapper, not part of the canvas pixels).
+function buildExportCanvas() {
+  const out = document.createElement('canvas');
+  out.width = canvas.width;
+  out.height = canvas.height;
+  const octx = out.getContext('2d');
+  octx.fillStyle = '#fdfcf9';
+  octx.fillRect(0, 0, out.width, out.height);
+  octx.drawImage(canvas, 0, 0);
+  return out;
+}
+
+function exportPng() {
+  if (points.length !== 3) return;
+  const out = buildExportCanvas();
+  const link = document.createElement('a');
+  link.download = 'triangle.png';
+  link.href = out.toDataURL('image/png');
+  link.click();
+}
+
+function exportPdf() {
+  if (points.length !== 3) return;
+  const out = buildExportCanvas();
+  const imgData = out.toDataURL('image/png');
+  const { jsPDF } = window.jspdf;
+  const orientation = out.width >= out.height ? 'landscape' : 'portrait';
+  const pdf = new jsPDF({ orientation, unit: 'pt', format: 'a4' });
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  const margin = 36;
+  const maxW = pageW - margin * 2;
+  const maxH = pageH - margin * 2;
+  const scale = Math.min(maxW / out.width, maxH / out.height);
+  const w = out.width * scale;
+  const h = out.height * scale;
+  const x = (pageW - w) / 2;
+  const y = (pageH - h) / 2;
+  pdf.setFontSize(14);
+  pdf.text('Triangle Construction', margin, margin - 12 > 0 ? margin - 12 : 16);
+  pdf.addImage(imgData, 'PNG', x, y, w, h);
+  pdf.save('triangle.pdf');
+}
+
+exportPngBtn.addEventListener('click', exportPng);
+exportPdfBtn.addEventListener('click', exportPdf);
+
+['chkIncenter', 'chkCentroid', 'chkCircumcenter', 'chkOrthocenter'].forEach((id) => {
+  document.getElementById(id).addEventListener('change', draw);
+});
+
+resizeCanvas();
+updateSidebar();
+</script>
+
+</body>
+</html>

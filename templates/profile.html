@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Profile — GeoLab</title>
+<style>
+  :root {
+    --ink: #141815;
+    --ink-soft: #4a4a42;
+    --meta: #8a8578;
+    --paper: #f7f5ef;
+    --paper-raised: #fdfcf9;
+    --line: #d9d4c4;
+    --clay: #c9622a;
+    --clay-soft: #f3e3d8;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    font-family: var(--sans);
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+  }
+
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 0; }
+  .wordmark { font-weight: 600; font-size: 1.3rem; letter-spacing: .01em; text-decoration: none; }
+  .top nav { display: flex; flex-wrap: wrap; gap: 4px 22px; font: 500 .9rem var(--sans); }
+  .top nav a {
+    text-decoration: none; color: var(--ink-soft);
+    padding: 6px 0; border-bottom: 2px solid transparent;
+  }
+  .top nav a:hover { color: var(--ink); border-bottom-color: var(--clay); }
+
+  main { padding: 40px 0 60px; }
+
+  .profile-card {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 40px;
+    max-width: 500px;
+  }
+
+  h1 { font-size: 2rem; font-weight: 600; margin: 0 0 8px; }
+  .subtitle { color: var(--ink-soft); margin: 0 0 30px; }
+
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .info-row:last-child { border-bottom: none; }
+
+  .label { font-weight: 500; color: var(--meta); }
+  .value { font-weight: 600; color: var(--ink); }
+
+  .actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 30px;
+  }
+
+  .btn {
+    flex: 1;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 4px;
+    font-weight: 500;
+    font-size: 0.95rem;
+    cursor: pointer;
+    text-decoration: none;
+    text-align: center;
+    transition: all 0.2s;
+  }
+
+  .btn-secondary {
+    background: var(--ink);
+    color: #fff;
+  }
+
+  .btn-secondary:hover {
+    background: #26324f;
+  }
+
+  .btn-danger {
+    background: transparent;
+    color: var(--clay);
+    border: 1px solid var(--clay);
+  }
+
+  .btn-danger:hover {
+    background: var(--clay-soft);
+  }
+
+  footer { border-top: 1px solid var(--line); padding: 20px 0 40px; font: .82rem var(--mono); color: var(--meta); }
+
+  @media (max-width: 480px) {
+    .wrap { padding: 0 16px; }
+    .profile-card { padding: 30px 20px; }
+  }
+</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='theme.css') }}">
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <a class="wordmark" href="/">GeoLab</a>
+    <nav aria-label="Main">
+      <a href="/geometry">Workspace</a>
+      <a href="/solver">Solver</a>
+      <a href="/app">Full app</a>
+      <a href="/api">API</a>
+      <a href="{{ url_for('auth.logout') }}">Logout</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="profile-card">
+      <h1>Your Profile</h1>
+      <p class="subtitle">Account information</p>
+
+      <div class="info-row">
+        <span class="label">Username</span>
+        <span class="value">{{ user.username }}</span>
+      </div>
+
+      <div class="info-row">
+        <span class="label">Email</span>
+        <span class="value">{{ user.email }}</span>
+      </div>
+
+      <div class="info-row">
+        <span class="label">Member Since</span>
+        <span class="value">{{ user.created_at.strftime('%B %Y') }}</span>
+      </div>
+
+      <div class="actions">
+        <a href="/" class="btn btn-secondary">Back Home</a>
+        <a href="{{ url_for('auth.logout') }}" class="btn btn-danger">Logout</a>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    &copy; 2024 GeoLab. A triangle geometry workbench.
+  </footer>
+</div>
+
+</body>
+</html>

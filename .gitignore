@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Virtual environment
+.venv/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Test / tool caches
+.pytest_cache/
+.ruff_cache/
+
+# Generated files (recreate with `python setup_db.py` / `python populate_etc_cache.py`)
+triangle_centers.db
+.etc_cache/
+
+# Saved geometry-workspace scenes (your own data)
+scenes/*.json
+
+# Backups
+*.bak

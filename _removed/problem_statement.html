@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Geometry Project &mdash; Problem Statement</title>
+<script>
+  window.MathJax = {
+    tex: { inlineMath: [['$', '$']], displayMath: [['$$', '$$']] }
+  };
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js"></script>
+<style>
+  :root {
+    --ink: #1c2321;
+    --ink-soft: #4a4a42;
+    --meta: #8a8578;
+    --paper: #f6f4ee;
+    --raised: #fdfcf9;
+    --line: #d9d4c4;
+    --accent: #2f5d50;
+    --accent-soft: #e4ede9;
+    --boxframe: #1e3c6e;
+    --boxbg: #f8f9fc;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Georgia', 'Iowan Old Style', serif;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 56px 20px;
+  }
+  a.back {
+    align-self: flex-start;
+    margin: 0 auto 24px;
+    max-width: 700px;
+    width: 100%;
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 0.9rem;
+  }
+  a.back:hover { text-decoration: underline; }
+
+  .geomproblem {
+    width: 100%;
+    max-width: 700px;
+    border: 1.5px solid var(--boxframe);
+    border-radius: 6px;
+    background: var(--boxbg);
+    overflow: hidden;
+    box-shadow: 0 6px 18px rgba(30, 60, 110, 0.08);
+  }
+  .geomproblem .title {
+    background: var(--boxframe);
+    color: white;
+    font-weight: 700;
+    font-size: 1.15rem;
+    padding: 12px 18px;
+  }
+  .geomproblem .body { padding: 18px 22px 22px; }
+  .geomproblem h3 {
+    color: var(--boxframe);
+    font-size: 1rem;
+    margin: 18px 0 8px;
+  }
+  .geomproblem h3:first-child { margin-top: 0; }
+  .geomproblem ul { margin: 0; padding-left: 22px; line-height: 1.7; }
+  .geomproblem .params { line-height: 2; }
+  .geomproblem .goal-box {
+    border: 1.2px solid var(--boxframe);
+    background: white;
+    border-radius: 4px;
+    padding: 14px;
+    text-align: center;
+    margin-top: 8px;
+    font-size: 1.05rem;
+  }
+  .geomproblem .meta {
+    text-align: right;
+    font-size: 0.82rem;
+    color: var(--ink-soft);
+    font-style: italic;
+    margin-top: 14px;
+  }
+</style>
+</head>
+<body>
+
+<a class="back" href="/">&larr; Home</a>
+
+<div class="geomproblem">
+  <div class="title">Geometric Problem Statement</div>
+  <div class="body">
+
+    <h3>Given Conditions / Setup</h3>
+    <ul>
+      <li>Let $ABC$ be a triangle with incircle of radius $r$.</li>
+      <li>Let $P$ be a point on side $BC$ such that $BP = m = 4$ and $PC = n = 3$.</li>
+      <li>Let $AP = u = 5$ be the cevian from $A$ to $P$.</li>
+      <li>The cevian $AP$ splits $\triangle ABC$ into $\triangle ABP$ and $\triangle ACP$, with inradii $r_2 = 0.9$ and $r_3 = 0.8$ respectively.</li>
+    </ul>
+
+    <h3>Definitions of Parameters</h3>
+    <div class="params">
+      $r$ = inradius of the full triangle $ABC$<br>
+      $r_2$ = inradius of sub-triangle $ABP$<br>
+      $r_3$ = inradius of sub-triangle $ACP$<br>
+      $u$ = length of cevian $AP$<br>
+      $m$ = length of segment $BP$<br>
+      $n$ = length of segment $PC$
+    </div>
+
+    <h3>Proof Goal</h3>
+    <div class="goal-box">
+      $$\displaystyle \frac{1}{r_2} + \frac{1}{r_3} \;=\; \frac{2}{r} + \frac{u(m+n)}{m\,n\,r}$$
+    </div>
+
+    <div class="meta">Date: September 22, 2026 &nbsp;|&nbsp; Author: Hasin Khan</div>
+  </div>
+</div>
+
+</body>
+</html>

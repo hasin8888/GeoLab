@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Triangle Problem Solver</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root {
+    --ink: #1c2321;
+    --paper: #f6f4ee;
+    --line: #cfc9ba;
+    --accent: #2f5d50;
+    --accent-soft: #e4ede9;
+    --warn: #8a5a00;
+    --warn-bg: #fff4d6;
+    --bad: #9b2c2c;
+    --bad-bg: #fde8e8;
+    --good: #22683e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Georgia', 'Iowan Old Style', serif;
+    background: var(--paper);
+    color: var(--ink);
+    display: flex;
+    min-height: 100vh;
+  }
+  .math {
+    font-family: 'Cambria Math', 'STIX Two Math', 'Noto Sans Math', 'Segoe UI Symbol', 'Times New Roman', serif;
+  }
+  #left {
+    width: 340px; flex-shrink: 0;
+    padding: 24px 22px;
+    border-right: 1px solid var(--line);
+    display: flex; flex-direction: column; gap: 16px;
+    overflow-y: auto;
+    height: 100vh; position: sticky; top: 0;
+  }
+  #right { flex: 1; padding: 28px 36px; max-width: 900px; }
+  h1 { font-size: 1.3rem; margin: 0 0 4px 0; font-weight: 600; }
+  h2 {
+    font: 600 0.72rem -apple-system, sans-serif;
+    text-transform: uppercase; letter-spacing: .08em;
+    color: #7a7a70; margin: 0 0 8px 0;
+  }
+  p.hint { margin: 0; font-size: 0.86rem; color: #5b5b52; line-height: 1.5; }
+  .nav a { font: 0.8rem -apple-system, sans-serif; color: var(--accent); margin-right: 12px; }
+
+  .field { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+  .field label {
+    width: 58px; flex-shrink: 0; font-size: 1.05rem; text-align: right;
+    color: var(--ink);
+  }
+  .field input {
+    flex: 1; min-width: 0;
+    font: 0.86rem -apple-system, sans-serif; padding: 6px 8px;
+    border: 1px solid var(--line); border-radius: 3px; background: #fff;
+  }
+  .field input:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+  .field .want { flex-shrink: 0; }
+  .field .want input { flex: none; }
+  .group-title { font: 600 0.72rem -apple-system, sans-serif; color: #7a7a70; margin: 10px 0 4px 66px; }
+  .col-head { display: flex; justify-content: flex-end; font: 0.68rem -apple-system, sans-serif; color: #8a8a80; margin-bottom: 2px; }
+  .col-head span { width: 34px; text-align: center; }
+
+  button.btn {
+    font: inherit; font-size: 0.88rem;
+    padding: 9px 14px; border: 1px solid var(--ink);
+    background: var(--paper); color: var(--ink);
+    border-radius: 3px; cursor: pointer;
+  }
+  button.btn:hover { background: var(--accent-soft); }
+  button.btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  button.btn.primary:hover { filter: brightness(1.08); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .examples button {
+    font: 0.78rem -apple-system, sans-serif; padding: 5px 9px;
+    border: 1px solid var(--line); background: #fff; border-radius: 12px;
+    cursor: pointer;
+  }
+  .examples button:hover { background: var(--accent-soft); border-color: var(--accent); }
+
+  /* ---------------------------------------------------------- results */
+  .empty { color: #8a8a80; font-style: italic; margin-top: 40px; }
+  .section { margin-bottom: 26px; }
+  .section h3 {
+    font: 600 0.78rem -apple-system, sans-serif;
+    text-transform: uppercase; letter-spacing: .08em; color: var(--accent);
+    margin: 0 0 10px 0; padding-bottom: 5px; border-bottom: 1px solid var(--line);
+  }
+  .kv { display: grid; grid-template-columns: 90px 1fr; gap: 4px 12px; font-size: 0.95rem; }
+  .kv .k { text-align: right; }
+  .kv .m { color: #6b6b60; font: 0.85rem -apple-system, sans-serif; }
+  .step {
+    display: grid; grid-template-columns: 34px 1fr; gap: 12px;
+    padding: 10px 0; border-bottom: 1px dashed var(--line);
+  }
+  .step .n {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: var(--accent-soft); color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font: 600 0.78rem -apple-system, sans-serif;
+  }
+  .step .thm { font: 600 0.82rem -apple-system, sans-serif; color: var(--accent); }
+  .step .fml { font-size: 1.02rem; margin: 3px 0; }
+  .step .res { font-size: 0.95rem; }
+  .step .uses { font: 0.78rem -apple-system, sans-serif; color: #7a7a70; margin-top: 2px; }
+  .final {
+    background: #fff; border: 1px solid var(--accent); border-radius: 4px;
+    padding: 14px 16px;
+  }
+  .final .row2 { display: grid; grid-template-columns: 90px 1fr; gap: 3px 12px; font-size: 1rem; }
+  .final .row2 .k { text-align: right; }
+  .final .row2 .hi { font-weight: 700; color: var(--accent); }
+  .banner { padding: 10px 14px; border-radius: 4px; font: 0.86rem -apple-system, sans-serif; margin-bottom: 10px; line-height: 1.45; }
+  .banner.warn { background: var(--warn-bg); color: var(--warn); }
+  .banner.err { background: var(--bad-bg); color: var(--bad); }
+  .check { font: 0.85rem -apple-system, sans-serif; margin: 3px 0; }
+  .check .ok { color: var(--good); font-weight: 700; }
+  .check .no { color: var(--bad); font-weight: 700; }
+  #saveNote { font: 0.78rem -apple-system, sans-serif; color: #7a7a70; margin-top: 8px; }
+  /* When embedded in the Full App (/app), the app's own sidebar handles navigation. */
+  .embedded .nav { display: none; }
+
+  /* ------------------------------------------------ phone / small screens */
+  button { touch-action: manipulation; }
+  @media (max-width: 860px) {
+    body { flex-direction: column; }
+    #left {
+      width: 100%; height: auto; position: static;
+      border-right: none; border-bottom: 1px solid var(--line);
+      padding: 16px 14px; overflow-y: visible;
+    }
+    #right { padding: 18px 14px 40px; max-width: 100%; }
+    .field input { font-size: 16px; padding: 9px 10px; }   /* 16px stops iOS zooming in on focus */
+    button.btn { padding: 11px 16px; }
+    .examples button { padding: 8px 12px; }
+    .kv, .final .row2 { grid-template-columns: 70px 1fr; }
+    .step { grid-template-columns: 30px 1fr; gap: 10px; }
+    .step .fml { overflow-wrap: anywhere; }
+  }
+</style>
+<script>if (window.self !== window.top) document.documentElement.classList.add('embedded');</script>
+<link rel="stylesheet" href="{{ url_for('static', filename='theme.css') }}">
+</head>
+<body>
+
+<div id="left">
+  <div>
+    <div class="nav"><a href="/">&larr; Home</a><a href="/geometry">Geometry</a><a href="/construct">Construct</a><a href="/app">App</a></div>
+    <h1 style="margin-top:10px;">Triangle Solver</h1>
+    <p class="hint">
+      Enter whatever you <b>know</b> about a triangle &mdash; leave the rest blank.
+      The solver works only with <b>lengths and angles</b> (no coordinates) and
+      shows every step with the theorem it uses. Angles are in <b>degrees</b>.
+    </p>
+  </div>
+
+  <div class="examples">
+    <h2>Try an example</h2>
+    <div class="row">
+      <button data-ex="sss">SSS</button>
+      <button data-ex="sas">SAS</button>
+      <button data-ex="asa">ASA / AAS</button>
+      <button data-ex="ssa">SSA (ambiguous)</button>
+      <button data-ex="radii">R and r</button>
+    </div>
+  </div>
+
+  <div>
+    <h2>Known values</h2>
+    <div class="col-head"><span>want</span></div>
+    <div id="fields"></div>
+  </div>
+
+  <div class="row">
+    <button class="btn primary" id="solveBtn">Solve</button>
+    <button class="btn" id="clearBtn">Clear</button>
+  </div>
+  <div class="row">
+    <button class="btn" id="exportPngBtn" disabled>Export PNG</button>
+    <button class="btn" id="exportPdfBtn" disabled>Export PDF</button>
+  </div>
+
+</div>
+
+<div id="right">
+  <div id="out"><div class="empty">Fill in the known values on the left and press <b>Solve</b>.</div></div>
+</div>
+
+<script>
+// ------------------------------------------------------------------ fields
+// [key, label shown, group]. Labels use math-italic Greek where relevant.
+const FIELDS = [
+  ['a', 'a', 'Sides'], ['b', 'b', 'Sides'], ['c', 'c', 'Sides'],
+  ['alpha', '\u{1D6FC}', 'Angles (degrees)'], ['beta', '\u{1D6FD}', 'Angles (degrees)'], ['gamma', '\u{1D6FE}', 'Angles (degrees)'],
+  ['s', 's', 'Other'], ['Delta', '\u0394', 'Other'], ['R', 'R', 'Other'], ['r', 'r', 'Other'],
+  ['h_a', 'h\u2090', 'Altitudes'], ['h_b', 'h_b', 'Altitudes'], ['h_c', 'h_c', 'Altitudes'],
+  ['m_a', 'm\u2090', 'Medians'], ['m_b', 'm_b', 'Medians'], ['m_c', 'm_c', 'Medians'],
+];
+// Display symbol for results.
+const LABEL = Object.fromEntries(FIELDS.map(([k, l]) => [k, l]));
+
+const fieldsEl = document.getElementById('fields');
+let lastGroup = null;
+for (const [key, label, group] of FIELDS) {
+  if (group !== lastGroup) {
+    const t = document.createElement('div');
+    t.className = 'group-title'; t.textContent = group;
+    fieldsEl.appendChild(t);
+    lastGroup = group;
+  }
+  const d = document.createElement('div');
+  d.className = 'field';
+  d.innerHTML =
+    `<label class="math" for="f_${key}">${label}</label>` +
+    `<input type="text" inputmode="decimal" id="f_${key}" data-key="${key}" autocomplete="off">` +
+    `<span class="want"><input type="checkbox" id="w_${key}" data-want="${key}" title="highlight this in the answer"></span>`;
+  fieldsEl.appendChild(d);
+}
+
+// --------------------------------------------------------------- examples
+const EXAMPLES = {
+  sss:   { a: 13, b: 14, c: 15 },
+  sas:   { a: 5, b: 7, gamma: 60 },
+  asa:   { a: 10, alpha: 40, beta: 65 },
+  ssa:   { a: 6, b: 8, alpha: 30 },
+  radii: { a: 13, b: 14, c: 15 },
+};
+document.querySelectorAll('[data-ex]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    clearAll();
+    const ex = EXAMPLES[btn.dataset.ex];
+    for (const [k, v] of Object.entries(ex)) document.getElementById('f_' + k).value = v;
+    if (btn.dataset.ex === 'radii') { document.getElementById('w_R').checked = true; document.getElementById('w_r').checked = true; }
+    solve();
+  });
+});
+
+function clearAll() {
+  document.querySelectorAll('#fields input[type=text]').forEach(i => i.value = '');
+  document.querySelectorAll('#fields input[type=checkbox]').forEach(i => i.checked = false);
+  document.getElementById('out').innerHTML =
+    '<div class="empty">Fill in the known values on the left and press <b>Solve</b>.</div>';
+  setExportEnabled(false);
+}
+
+// ------------------------------------------------------------------ export
+const exportPngBtn = document.getElementById('exportPngBtn');
+const exportPdfBtn = document.getElementById('exportPdfBtn');
+
+function setExportEnabled(enabled) {
+  exportPngBtn.disabled = !enabled;
+  exportPdfBtn.disabled = !enabled;
+}
+
+async function captureResultCanvas() {
+  const target = document.getElementById('out');
+  return html2canvas(target, { backgroundColor: '#f6f4ee', scale: 2, useCORS: true });
+}
+
+async function exportPng() {
+  try {
+    const canvas = await captureResultCanvas();
+    const link = document.createElement('a');
+    link.download = 'triangle-solution.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  } catch (e) {
+    alert('Could not export PNG: ' + e.message);
+  }
+}
+
+async function exportPdf() {
+  try {
+    const canvas = await captureResultCanvas();
+    const imgData = canvas.toDataURL('image/png');
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const margin = 28;
+    const maxW = pageW - margin * 2;
+    const ratio = canvas.height / canvas.width;
+    const imgW = maxW;
+    const imgH = imgW * ratio;
+
+    let heightLeft = imgH;
+    let position = margin;
+    pdf.addImage(imgData, 'PNG', margin, position, imgW, imgH);
+    heightLeft -= (pageH - margin * 2);
+
+    while (heightLeft > 0) {
+      position = heightLeft - imgH + margin;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', margin, position, imgW, imgH);
+      heightLeft -= (pageH - margin * 2);
+    }
+
+    pdf.save('triangle-solution.pdf');
+  } catch (e) {
+    alert('Could not export PDF: ' + e.message);
+  }
+}
+
+exportPngBtn.addEventListener('click', exportPng);
+exportPdfBtn.addEventListener('click', exportPdf);
+
+// -------------------------------------------------------------------- solve
+const num = (v) => Number(v).toPrecision(7).replace(/\.?0+$/, '').replace(/\.?0+e/, 'e');
+const fmt = (key, v) => (['alpha', 'beta', 'gamma'].includes(key) ? num(v) + '\u00b0' : num(v));
+const esc = (s) => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const L = (k) => LABEL[k] || k;
+
+async function solve() {
+  const given = {};
+  document.querySelectorAll('#fields input[type=text]').forEach(i => {
+    if (i.value.trim() !== '') given[i.dataset.key] = i.value.trim();
+  });
+  const want = [...document.querySelectorAll('#fields input[type=checkbox]:checked')].map(i => i.dataset.want);
+
+  const out = document.getElementById('out');
+  out.innerHTML = '<div class="empty">Solving&hellip;</div>';
+  let data;
+  try {
+    const res = await fetch('/api/solve', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ given, want: want.length ? want : null }),
+    });
+    data = await res.json();
+  } catch (e) {
+    out.innerHTML = '<div class="banner err">Could not reach the server. Is <code>python app.py</code> running?</div>';
+    setExportEnabled(false);
+    return;
+  }
+  if (data.status !== 'ok') {
+    out.innerHTML = `<div class="banner err"><b>${esc(data.error_code || 'ERROR')}</b> &mdash; ${esc(data.message || '')}</div>`;
+    setExportEnabled(false);
+    return;
+  }
+  render(data);
+  setExportEnabled(true);
+}
+
+function render(d) {
+  let h = '';
+
+  for (const w of d.warnings || []) h += `<div class="banner warn">${esc(w)}</div>`;
+
+  // 1. Given
+  h += '<div class="section"><h3>1 &middot; Problem breakdown &amp; given data</h3><div class="kv">';
+  for (const [k, v] of Object.entries(d.given)) {
+    h += `<div class="k math">${L(k)} =</div><div><span class="math">${fmt(k, v.value)}</span> <span class="m">&nbsp;${esc(v.meaning)}</span></div>`;
+  }
+  h += '</div></div>';
+
+  // 2. Notation
+  h += '<div class="section"><h3>2 &middot; Notation &amp; framework</h3>';
+  h += '<p class="hint" style="margin-bottom:8px;">Coordinate-free: only lengths and angles are used. ' +
+       'Side <span class="math">a</span> is opposite vertex A, and so on.</p><div class="kv">';
+  for (const [k, m] of Object.entries(d.notation)) {
+    h += `<div class="k math">${L(k)}</div><div class="m">${esc(m)}</div>`;
+  }
+  h += '</div></div>';
+
+  // 3. Steps
+  h += '<div class="section"><h3>3 &middot; Step-by-step solution</h3>';
+  if (!d.steps.length) h += '<div class="empty">Nothing further can be derived from these values.</div>';
+  d.steps.forEach((s, i) => {
+    const uses = Object.entries(s.uses).map(([k, v]) => `${L(k)} = ${fmt(k, v)}`).join(',  ');
+    h += `<div class="step"><div class="n">${i + 1}</div><div>` +
+         `<div class="thm">${esc(s.theorem)}</div>` +
+         `<div class="fml math">${esc(s.formula)}</div>` +
+         `<div class="uses">using ${esc(uses)}</div>` +
+         `<div class="res math"><b>${L(s.derived)} = ${fmt(s.derived, s.value)}</b></div>` +
+         `</div></div>`;
+  });
+  h += '</div>';
+
+  // 4. Conclusion
+  h += '<div class="section"><h3>4 &middot; Conclusion</h3><div class="final"><div class="row2">';
+  const wanted = d.conclusion.wanted || {};
+  const order = ['a','b','c','alpha','beta','gamma','s','Delta','R','r','h_a','h_b','h_c','m_a','m_b','m_c'];
+  for (const k of order) {
+    if (!(k in d.conclusion.known)) continue;
+    const hi = (k in wanted) ? ' hi' : '';
+    h += `<div class="k math${hi}">${L(k)} =</div><div class="math${hi}">${fmt(k, d.conclusion.known[k])}</div>`;
+  }
+  h += '</div></div>';
+
+  // Consistency check
+  const cc = d.consistency_check;
+  if (cc && cc.checks && cc.checks.length) {
+    h += '<div style="margin-top:14px;"><h2>Consistency check</h2>';
+    for (const c of cc.checks) {
+      const mark = c.holds ? '<span class="ok">\u2713</span>' : '<span class="no">\u2717</span>';
+      const vals = (c.lhs !== null && c.rhs !== null) ? ` &nbsp;<span style="color:#8a8a80">(${num(c.lhs)} vs ${num(c.rhs)})</span>` : '';
+      h += `<div class="check">${mark} <span class="math">${esc(c.identity)}</span>${vals}</div>`;
+    }
+    h += '</div>';
+  }
+  h += '</div>';
+  document.getElementById('out').innerHTML = h;
+}
+
+document.getElementById('solveBtn').addEventListener('click', solve);
+document.getElementById('clearBtn').addEventListener('click', clearAll);
+document.querySelectorAll('#fields input[type=text]').forEach(i =>
+  i.addEventListener('keydown', (e) => { if (e.key === 'Enter') solve(); }));
+</script>
+</body>
+</html>

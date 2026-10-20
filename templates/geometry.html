@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Geometry Workspace</title>
+<style>
+  :root {
+    --ink: #1c2321;
+    --paper: #f6f4ee;
+    --line: #cfc9ba;
+    --accent: #2f5d50;
+    --accent-soft: #e4ede9;
+    --select: #2a6df4;
+  }
+  * { box-sizing: border-box; }
+  /* The page itself never scrolls (the panels scroll inside); this also stops the
+     off-screen hover tooltips from adding scroll bars around the drawing. */
+  html, body { overflow: hidden; }
+  body {
+    margin: 0;
+    font-family: 'Georgia', 'Iowan Old Style', serif;
+    background: var(--paper);
+    color: var(--ink);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  /* ---------------------------------------------------------- toolbar */
+  #toolbar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-bottom: 1px solid var(--line);
+    background: #fbfaf5;
+    flex-wrap: wrap;
+  }
+  #toolbar .sep { width: 1px; height: 28px; background: var(--line); margin: 0 3px; }
+  #toolbar button[data-tool] {
+    min-width: 46px; height: 48px; flex-direction: column; gap: 1px;
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 0;
+    border: 1px solid transparent;
+    background: transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--ink);
+  }
+  #toolbar button[data-tool]:hover { background: var(--accent-soft); }
+  #toolbar button[data-tool].active {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  #toolbar button#lengthsToggle {
+    width: auto; padding: 0 12px;
+    font: 0.78rem -apple-system, sans-serif;
+    display: inline-flex; align-items: center; gap: 6px;
+    border: 1px solid var(--line);
+    background: transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--ink);
+  }
+  #toolbar button#lengthsToggle:hover { background: var(--accent-soft); }
+  #toolbar button#lengthsToggle.on {
+    background: var(--accent); border-color: var(--accent); color: #fff;
+  }
+  #toolbar svg { width: 21px; height: 21px; stroke: currentColor; fill: none;
+                 stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  #toolbar svg .dot { fill: currentColor; stroke: none; }
+
+  /* Visible name under every tool icon, so tools are recognisable at a glance
+     (hover tooltips do not exist on touch screens). */
+  #toolbar button[data-tool] .tb-name {
+    order: 2; padding: 0 3px; white-space: nowrap;
+    font: 600 9.5px/1.1 -apple-system, 'Segoe UI', Arial, sans-serif;
+    letter-spacing: .01em; pointer-events: none;
+  }
+
+  /* Text buttons: Undo / Redo / Export PNG. */
+  #toolbar button.tb-btn {
+    height: 34px; padding: 0 12px;
+    font: 0.78rem -apple-system, sans-serif;
+    border: 1px solid var(--line);
+    background: transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--ink);
+  }
+  #toolbar button.tb-btn:hover:not(:disabled) { background: var(--accent-soft); }
+  #toolbar button.tb-btn:disabled { opacity: .4; cursor: default; }
+
+  /* Instant tooltip so users can learn the icons. */
+  #toolbar button[data-tool] { position: relative; }
+  #toolbar button[data-tool]::after {
+    content: attr(title);
+    position: absolute; top: 54px; left: 50%; transform: translateX(-50%);
+    background: var(--ink); color: #fff; font: 12px -apple-system, sans-serif;
+    padding: 3px 8px; border-radius: 3px; white-space: nowrap;
+    opacity: 0; pointer-events: none; transition: opacity .12s; z-index: 10;
+  }
+  #toolbar button[data-tool]:hover::after { opacity: 1; }
+
+  /* -------------------------------------------------------------- body */
+  #main { flex: 1; display: flex; min-height: 0; }
+  #sidebar {
+    width: 290px; flex-shrink: 0;
+    border-right: 1px solid var(--line);
+    padding: 16px 18px;
+    display: flex; flex-direction: column; gap: 14px;
+    overflow-y: auto;
+  }
+  #sidebar h2 {
+    font: 600 0.72rem -apple-system, sans-serif;
+    text-transform: uppercase; letter-spacing: .08em;
+    color: #7a7a70; margin: 0 0 8px 0;
+  }
+  .side-btn {
+    font: inherit; font-size: 0.82rem;
+    padding: 7px 12px; border: 1px solid var(--ink);
+    background: var(--paper); color: var(--ink);
+    border-radius: 3px; cursor: pointer;
+  }
+  .side-btn:hover { background: var(--accent-soft); }
+  .side-btn.tri-circle-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; }
+  input[type=text], select {
+    font: 0.82rem -apple-system, sans-serif; padding: 6px 8px;
+    border: 1px solid var(--line); border-radius: 3px; background: #fff;
+    min-width: 0; flex: 1;
+  }
+
+  #renameInput { font-family: 'Cambria Math', 'STIX Two Math', 'Noto Sans Math', 'Segoe UI Symbol', 'Times New Roman', serif; font-size: 1.05rem; }
+  #renameHint { font: 0.75rem -apple-system, sans-serif; color: #7a7a70; margin-top: 6px; min-height: 1em; }
+
+  .swatch {
+    width: 26px; height: 26px; border-radius: 50%;
+    border: 2px solid transparent; cursor: pointer; padding: 0;
+    box-shadow: 0 0 0 1px var(--line);
+  }
+  .swatch:hover { transform: scale(1.08); }
+  .swatch.active { border-color: var(--select); box-shadow: 0 0 0 1px var(--select); }
+
+  #objectList { display: flex; flex-direction: column; gap: 2px; max-height: 320px; overflow-y: auto; }
+  .obj-row {
+    display: flex; justify-content: space-between; gap: 8px;
+    padding: 5px 8px; border-radius: 3px; cursor: pointer;
+    font: 0.8rem -apple-system, sans-serif;
+  }
+  .obj-row:hover { background: var(--accent-soft); }
+  .obj-row.sel { background: rgba(42,109,244,.14); }
+  .obj-row.hidden { opacity: .4; text-decoration: line-through; }
+  .obj-detail { color: #7a7a70; font-variant-numeric: tabular-nums; }
+  .empty { color: #8a8a80; font: italic 0.8rem -apple-system, sans-serif; }
+
+  #canvasWrap {
+    flex: 1; position: relative; overflow: hidden;
+    background-color: #fdfcf9;
+  }
+  canvas { display: block; touch-action: none; }
+  #hint {
+    position: absolute; left: 16px; bottom: 14px;
+    font: 0.8rem -apple-system, sans-serif; color: #5b5b52;
+    background: rgba(253,252,249,.9); padding: 5px 10px; border-radius: 3px;
+    pointer-events: none;
+  }
+
+  /* ------------------------------------------------ phone / tablet */
+  #sidebarClose, .touch-only { display: none; }
+  #panelToggle { display: inline-flex; align-items: center; }
+  /* Desktop: the Panel button hides the side panel so the drawing gets the full width. */
+  @media (min-width: 861px) { body.panel-hidden #sidebar { display: none; } }
+  #sidebarBackdrop { display: none; }
+  button { touch-action: manipulation; }  /* no double-tap-zoom delay on buttons */
+  canvas { -webkit-tap-highlight-color: transparent; }
+
+  /* Finger screens (phones and tablets): bigger keyboard-less helpers, no hover tooltips. */
+  @media (pointer: coarse) {
+    .touch-only { display: inline-flex; align-items: center; }
+    #toolbar button[data-tool]::after { display: none; }
+    #geoTextEditor { font-size: 16px !important; }  /* stops iOS zooming in on focus */
+  }
+
+  @media (max-width: 860px) {
+    body { height: 100vh; height: 100dvh; }
+    #panelToggle { display: inline-flex; align-items: center; }
+    #sidebarClose { display: block; align-self: flex-start; }
+    #toolbar {
+      flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain;
+      padding: 6px 8px; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+    }
+    #toolbar::-webkit-scrollbar { display: none; }
+    #toolbar > * { flex-shrink: 0; }
+    #toolbar button[data-tool] { min-width: 46px; height: 50px; }
+    #toolbar button.tb-btn, #toolbar button#lengthsToggle { height: 42px; }
+    /* The side panel slides in over the canvas instead of squeezing it. */
+    #sidebar {
+      position: fixed; z-index: 30; top: 0; bottom: 0; left: 0;
+      width: min(88vw, 330px);
+      background: var(--paper);
+      transform: translateX(-102%); transition: transform .18s ease;
+      box-shadow: 2px 0 18px rgba(0,0,0,.18); border-right: none;
+      -webkit-overflow-scrolling: touch;
+    }
+    #sidebar.open { transform: none; }
+    #sidebarBackdrop.open { display: block; position: fixed; inset: 0; z-index: 29; background: rgba(0,0,0,.28); }
+    .side-btn { padding: 10px 14px; }
+    input[type=text], select { font-size: 16px; padding: 9px 10px; }
+    #hint { left: 8px; right: 8px; bottom: 8px; font-size: 0.74rem; }
+  }
+</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='theme.css') }}">
+</head>
+<body>
+
+<div id="toolbar">
+  <button id="panelToggle" class="tb-btn" type="button" title="Objects, circles, centers, colors, save/load">&#9776; Panel</button>
+  <a href="/" title="Home" style="font:0.82rem -apple-system,sans-serif;color:var(--accent);text-decoration:none;padding:0 10px 0 4px;">&larr; Home</a>
+  <div class="sep"></div>
+  <button data-tool="move" title="Move (drag / pan)"><span class="tb-name">Move</span>
+    <svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/></svg>
+  </button>
+  <button data-tool="select" title="Select Objects"><span class="tb-name">Select</span>
+    <svg viewBox="0 0 24 24"><path d="M5 3l14 8-6 2-2 6z"/></svg>
+  </button>
+  <div class="sep"></div>
+
+  <button data-tool="point" title="Point"><span class="tb-name">Point</span>
+    <svg viewBox="0 0 24 24"><circle class="dot" cx="12" cy="12" r="3.5"/><path d="M12 4v3M12 17v3M4 12h3M17 12h3"/></svg>
+  </button>
+  <button data-tool="text" title="Text (click to add a note)"><span class="tb-name">Text</span>
+    <svg viewBox="0 0 24 24"><path d="M5 5h14M12 5v14M9 19h6"/></svg>
+  </button>
+  <button data-tool="segment" title="Segment"><span class="tb-name">Segment</span>
+    <svg viewBox="0 0 24 24"><path d="M6 18L18 6"/><circle class="dot" cx="6" cy="18" r="2.3"/><circle class="dot" cx="18" cy="6" r="2.3"/></svg>
+  </button>
+  <button data-tool="line" title="Line"><span class="tb-name">Line</span>
+    <svg viewBox="0 0 24 24"><path d="M3 20L21 4"/><circle class="dot" cx="9" cy="15" r="2.3"/><circle class="dot" cx="16" cy="9" r="2.3"/></svg>
+  </button>
+  <button data-tool="midpoint" title="Midpoint (click a segment, or two points)"><span class="tb-name">Midpoint</span>
+    <svg viewBox="0 0 24 24"><path d="M4 20L20 4"/><circle class="dot" cx="4" cy="20" r="2.1"/><circle class="dot" cx="20" cy="4" r="2.1"/><circle class="dot" cx="12" cy="12" r="3"/></svg>
+  </button>
+  <button data-tool="perpendicular" title="Perpendicular Line (click a segment/line, then the point to pass through)"><span class="tb-name">Perp. Line</span>
+    <svg viewBox="0 0 24 24"><path d="M3 17h18M12 3v18"/><path d="M9 17v-3h3"/></svg>
+  </button>
+  <button data-tool="parallel" title="Parallel Line (click a segment/line, then the point to pass through)"><span class="tb-name">Parallel</span>
+    <svg viewBox="0 0 24 24"><path d="M3 15L15 3M9 21L21 9"/><circle class="dot" cx="15" cy="15" r="2.2"/></svg>
+  </button>
+  <button data-tool="perpbisector" title="Perpendicular Bisector (click a segment, or two points)"><span class="tb-name">Perp. Bisector</span>
+    <svg viewBox="0 0 24 24"><path d="M3 15h18M12 3v18"/><path d="M7 12v6M17 12v6"/><circle class="dot" cx="12" cy="15" r="2.2"/></svg>
+  </button>
+  <button data-tool="polygon" title="Polygon"><span class="tb-name">Polygon</span>
+    <svg viewBox="0 0 24 24"><path d="M5 17l3-11 10 2 2 9z"/><circle class="dot" cx="5" cy="17" r="1.8"/><circle class="dot" cx="8" cy="6" r="1.8"/><circle class="dot" cx="18" cy="8" r="1.8"/><circle class="dot" cx="20" cy="17" r="1.8"/></svg>
+  </button>
+  <button data-tool="isosceles" title="Isosceles Triangle (click the two ends of the base)"><span class="tb-name">Isosceles</span>
+    <svg viewBox="0 0 24 24"><path d="M12 3L20 20H4Z"/><circle class="dot" cx="4" cy="20" r="1.8"/><circle class="dot" cx="20" cy="20" r="1.8"/><circle class="dot" cx="12" cy="3" r="1.8"/></svg>
+  </button>
+  <button data-tool="equilateral" title="Equilateral Triangle (click the two ends of a side)"><span class="tb-name">Equilateral</span>
+    <svg viewBox="0 0 24 24"><path d="M12 3L21 20H3Z"/><circle class="dot" cx="3" cy="20" r="1.8"/><circle class="dot" cx="21" cy="20" r="1.8"/><circle class="dot" cx="12" cy="3" r="1.8"/></svg>
+  </button>
+  <button data-tool="square" title="Square (click the two ends of one side; press F to flip the side)"><span class="tb-name">Square</span>
+    <svg viewBox="0 0 24 24"><path d="M5 5h14v14H5Z"/><circle class="dot" cx="5" cy="19" r="1.8"/><circle class="dot" cx="19" cy="19" r="1.8"/></svg>
+  </button>
+  <button data-tool="rectangle" title="Rectangle (click the two ends of one side, then click to set the width)"><span class="tb-name">Rectangle</span>
+    <svg viewBox="0 0 24 24"><path d="M3 7h18v10H3Z"/><circle class="dot" cx="3" cy="17" r="1.8"/><circle class="dot" cx="21" cy="17" r="1.8"/></svg>
+  </button>
+  <button data-tool="circle" title="Circle with Centre through Point"><span class="tb-name">Circle</span>
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle class="dot" cx="12" cy="12" r="2"/><circle class="dot" cx="20" cy="12" r="2"/></svg>
+  </button>
+  <button data-tool="ellipse" title="Ellipse (click the two foci, then a point on the ellipse)"><span class="tb-name">Ellipse</span>
+    <svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="9.5" ry="5.5"/><circle class="dot" cx="8" cy="12" r="1.8"/><circle class="dot" cx="16" cy="12" r="1.8"/></svg>
+  </button>
+  <button data-tool="semicircle" title="Semicircle (click the two ends of a diameter; press F to flip the side)"><span class="tb-name">Semicircle</span>
+    <svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 0 16 0"/><path d="M4 12h16"/><circle class="dot" cx="4" cy="12" r="2"/><circle class="dot" cx="20" cy="12" r="2"/></svg>
+  </button>
+  <button data-tool="angle" title="Angle (click first point, then the VERTEX, then the last point)"><span class="tb-name">Angle</span>
+    <svg viewBox="0 0 24 24"><path d="M4 20h16M4 20L18 6"/><path d="M9 20a7 7 0 0 1 2.2-5.1"/><circle class="dot" cx="4" cy="20" r="2"/></svg>
+  </button>
+  <button data-tool="anglebisector" title="Angle Bisector (click first point, then the VERTEX, then the last point)"><span class="tb-name">Angle Bisector</span>
+    <svg viewBox="0 0 24 24"><path d="M4 20h16M4 20L18 6"/><path d="M4 20L20 4"/><circle class="dot" cx="4" cy="20" r="2"/></svg>
+  </button>
+  <div class="sep"></div>
+  <button id="undoBtn" class="tb-btn" type="button" title="Undo (Ctrl+Z)" disabled>&#8630; Undo</button>
+  <button id="redoBtn" class="tb-btn" type="button" title="Redo (Ctrl+Y)" disabled>Redo &#8631;</button>
+  <!-- Phone/tablet only: stand-ins for the Enter / Esc / F keys that a touch screen does not have. -->
+  <button id="keyDoneBtn" class="tb-btn touch-only" type="button" title="Finish (Enter), e.g. close a polygon">&#10003; Done</button>
+  <button id="keyCancelBtn" class="tb-btn touch-only" type="button" title="Cancel (Esc)">&#10005; Cancel</button>
+  <button id="keyFlipBtn" class="tb-btn touch-only" type="button" title="Flip side (F): semicircle, square">&#8645; Flip</button>
+  <div class="sep"></div>
+  <button id="lengthsToggle" type="button" title="Show/hide every segment's length, all at once">Lengths: Off</button>
+  <span style="display:inline-flex;align-items:center;gap:4px;">
+    <button id="decDownBtn" class="tb-btn" type="button" title="Fewer digits after the decimal point">&minus;</button>
+    <span id="decLabel" style="font:0.78rem -apple-system,sans-serif;min-width:92px;text-align:center;" title="Digits after the decimal point for lengths">Decimals: 2</span>
+    <button id="decUpBtn" class="tb-btn" type="button" title="More digits after the decimal point">+</button>
+  </span>
+  <button id="exportPngBtn" class="tb-btn" type="button" title="Download the canvas as a PNG image">Export PNG</button>
+  <div class="sep"></div>
+
+  <button data-tool="label" title="Show / Hide Label"><span class="tb-name">Label</span>
+    <svg viewBox="0 0 24 24"><path d="M4 12l8-8h8v8l-8 8z"/><circle class="dot" cx="15.5" cy="8.5" r="1.5"/></svg>
+  </button>
+  <button data-tool="visibility" title="Show / Hide Object"><span class="tb-name">Show/Hide</span>
+    <svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+  </button>
+  <button data-tool="delete" title="Delete"><span class="tb-name">Delete</span>
+    <svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg>
+  </button>
+</div>
+
+<div id="main">
+  <div id="sidebarBackdrop"></div>
+  <div id="sidebar">
+    <button class="side-btn" id="sidebarClose" type="button">&#10005; Close panel</button>
+    <div>
+      <h2>Objects</h2>
+      <div id="objectList"></div>
+    </div>
+    <div class="row">
+      <button class="side-btn" id="showAllBtn">Show all</button>
+      <button class="side-btn" id="clearBtn">Clear</button>
+    </div>
+    <div>
+      <h2>Triangle circles</h2>
+      <div class="row" id="triCircleBtns" style="gap:6px;">
+        <button class="side-btn tri-circle-btn" data-tool="circumcircle" title="Click 3 points to build a triangle's circumcircle">Circumcircle</button>
+        <button class="side-btn tri-circle-btn" data-tool="incircle" title="Click 3 points to build a triangle's incircle">Incircle</button>
+        <button class="side-btn tri-circle-btn" data-tool="ninepoint" title="Click 3 points to build a triangle's nine-point circle">Nine-Point Circle</button>
+        <button class="side-btn tri-circle-btn" data-tool="excircles" title="Click 3 points to build all 3 of a triangle's excircles">Excircles</button>
+        <button class="side-btn tri-circle-btn" data-tool="spieker" title="Click 3 points to build a triangle's Spieker circle (incircle of the medial triangle)">Spieker Circle</button>
+        <button class="side-btn tri-circle-btn" data-tool="brocard" title="Click 3 points to build a triangle's Brocard circle (diameter from circumcentre to symmedian point)">Brocard Circle</button>
+        <button class="side-btn tri-circle-btn" data-tool="mandart" title="Click 3 points to build a triangle's Mandart circle (circumcircle of the extouch triangle)">Mandart Circle</button>
+        <button class="side-btn tri-circle-btn" data-tool="apollonius" title="Click 3 points to build all 3 of a triangle's Apollonius circles">Apollonius Circles</button>
+        <button class="side-btn tri-circle-btn" data-tool="conway" title="Click 3 points to build a triangle's Conway circle">Conway Circle</button>
+        <button class="side-btn tri-circle-btn" data-tool="orthocentroidal" title="Click 3 points to build a triangle's orthocentroidal circle (diameter from centroid to orthocenter)">Orthocentroidal Circle</button>
+        <button class="side-btn tri-circle-btn" data-tool="tangentialtriangle" title="Click 3 points to build the circumcircle of a triangle's tangential triangle">Tangential Triangle Circle</button>
+        <button class="side-btn tri-circle-btn" data-tool="bevan" title="Click 3 points to build a triangle's Bevan circle (circumcircle of the excentral triangle)">Bevan Circle</button>
+        <button class="side-btn tri-circle-btn" data-tool="incentraltriangle" title="Click 3 points to build the circumcircle of a triangle's incentral triangle (angle-bisector feet)">Incentral Triangle Circle</button>
+        <button class="side-btn tri-circle-btn" data-tool="johnson" title="Click 3 points to build all 3 of a triangle's Johnson circles">Johnson Circles</button>
+      </div>
+    </div>
+    <div>
+      <h2>Triangle centers</h2>
+      <div class="row" id="triCenterBtns" style="gap:6px;">
+        <button class="side-btn tri-circle-btn" data-tool="incenter" title="Click 3 points to build a triangle's incenter X(1)">Incenter</button>
+        <button class="side-btn tri-circle-btn" data-tool="centroid" title="Click 3 points to build a triangle's centroid X(2)">Centroid</button>
+        <button class="side-btn tri-circle-btn" data-tool="circumcenter" title="Click 3 points to build a triangle's circumcenter X(3)">Circumcenter</button>
+        <button class="side-btn tri-circle-btn" data-tool="orthocenter" title="Click 3 points to build a triangle's orthocenter X(4)">Orthocenter</button>
+        <button class="side-btn tri-circle-btn" data-tool="ninepointcenter" title="Click 3 points to build a triangle's nine-point center X(5)">Nine-Point Center</button>
+        <button class="side-btn tri-circle-btn" data-tool="symmedian" title="Click 3 points to build a triangle's symmedian point X(6)">Symmedian Point</button>
+        <button class="side-btn tri-circle-btn" data-tool="spiekercenter" title="Click 3 points to build a triangle's Spieker center X(10)">Spieker Center</button>
+      </div>
+    </div>
+    <div>
+      <h2>Rename</h2>
+      <div class="row" style="margin-bottom:8px;">
+        <input type="text" id="renameInput" placeholder="type a name, then click a component" autocomplete="off">
+        <button class="side-btn" id="renameBtn">Apply</button>
+      </div>
+      <div id="renameHint"></div>
+    </div>
+    <div>
+      <h2>Scale construction</h2>
+      <div class="row" style="align-items:center;margin-bottom:8px;">
+        <button class="side-btn" id="scaleDownBtn" title="Shrink the whole construction (x 0.8)">&minus; Smaller</button>
+        <button class="side-btn" id="scaleUpBtn" title="Enlarge the whole construction (x 1.25)">+ Bigger</button>
+      </div>
+      <div class="row" style="align-items:center;">
+        <input type="text" id="scaleFactor" value="0.5" placeholder="factor, e.g. 0.5 or 2" autocomplete="off">
+        <button class="side-btn" id="scaleApplyBtn" title="Multiply the size of the whole construction by this factor">Apply</button>
+      </div>
+      <div id="scaleHint" style="font:0.75rem -apple-system,sans-serif;color:#7a7a70;margin-top:6px;min-height:1em;">Scales the whole construction (everything on the canvas). Factor below 1 shrinks, above 1 enlarges.</div>
+    </div>
+    <div>
+      <h2>Color</h2>
+      <div class="row" id="colorSwatches" style="margin-bottom:8px;"></div>
+      <div class="row" style="align-items:center;">
+        <input type="color" id="colorPicker" value="#1c2321" style="width:38px;height:30px;padding:2px;flex:0 0 auto;cursor:pointer;">
+        <button class="side-btn" id="colorApplyBtn">Apply</button>
+      </div>
+      <div id="colorHint" style="font:0.75rem -apple-system,sans-serif;color:#7a7a70;margin-top:6px;min-height:1em;"></div>
+    </div>
+    <div>
+      <h2>Save / Load</h2>
+      <div class="row" style="margin-bottom:6px;">
+        <input type="text" id="sceneName" placeholder="scene name">
+        <button class="side-btn" id="saveBtn">Save</button>
+      </div>
+      <div class="row">
+        <select id="sceneList"></select>
+        <button class="side-btn" id="loadBtn">Load</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="canvasWrap">
+    <canvas id="cv"></canvas>
+    <div id="hint"></div>
+  </div>
+</div>
+
+<!--
+  MathJax: renders LaTeX source (typed into a text note with the LaTeX
+  toggle on) to SVG for latex.js to draw onto the canvas. tex2svgPromise
+  needs the tex-svg component; startup.typeset=false stops it from also
+  scanning the page's own HTML for math (nothing here needs that).
+-->
+<script>
+  window.MathJax = {
+    startup: { typeset: false },
+    svg: { fontCache: 'local' },
+  };
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.js"></script>
+
+<script type="module" src="{{ url_for('static', filename='geometry/main.js') }}"></script>
+</body>
+</html>

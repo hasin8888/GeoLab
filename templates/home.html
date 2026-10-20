@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GeoLab</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; line-height: 1.55; }
+  a { color: inherit; }
+
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+
+  /* ------------------------------------------------------------ top bar */
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 0; }
+  .wordmark { font-weight: 600; font-size: 1.3rem; letter-spacing: .01em; text-decoration: none; }
+  .top nav { display: flex; flex-wrap: wrap; gap: 4px 22px; font: 500 .9rem var(--sans); }
+  .top nav a {
+    text-decoration: none; color: var(--ink-soft);
+    padding: 6px 0; border-bottom: 2px solid transparent;
+  }
+  .top nav a:hover { color: var(--ink); border-bottom-color: var(--clay); }
+
+  /* --------------------------------------------------------------- hero */
+  .hero {
+    display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: 48px; align-items: center; padding: 24px 0 64px;
+  }
+  h1 {
+    font-size: clamp(2.2rem, 4.6vw, 3.4rem); line-height: 1.05;
+    letter-spacing: -.012em; font-weight: 600; margin: 0 0 18px;
+  }
+  .lede { font-size: 1.14rem; color: var(--ink-soft); max-width: 44ch; margin: 0 0 28px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; }
+  .cta {
+    display: inline-block; text-decoration: none;
+    font: 500 .95rem var(--sans); padding: 11px 20px; border-radius: 4px;
+    border: 1px solid var(--ink); color: var(--ink); background: transparent;
+  }
+  .cta:hover { background: var(--accent-soft); }
+  .cta.primary { background: var(--ink); color: #fff; }
+  .cta.primary:hover { background: #26324f; }
+
+  /* -------------------------------------------------------------- board */
+  .board { margin: 0; }
+  .board svg {
+    display: block; width: 100%; height: auto;
+    background: var(--raised); border: 1px solid var(--line); border-radius: 6px;
+    user-select: none; -webkit-user-select: none;
+  }
+  .g-minor { fill: none; stroke: #e8edf4; stroke-width: 1; }
+  .g-major { fill: none; stroke: #d3dbe7; stroke-width: 1; }
+  .tri   { fill: rgba(31, 63, 148, .05); stroke: var(--ink); stroke-width: 2.4; stroke-linejoin: round; }
+  .circ  { fill: none; stroke: var(--ink-soft); stroke-width: 1.4; }
+  .nine  { fill: none; stroke: var(--blue); stroke-width: 1.8; }
+  .inc   { fill: none; stroke: var(--accent); stroke-width: 1.8; }
+  .euler { stroke: var(--clay); stroke-width: 1.8; stroke-dasharray: 7 5; }
+  .pt    { fill: var(--ink); }
+  .pt.n  { fill: var(--blue); }
+  .pt.i  { fill: var(--accent); }
+  .pt.e  { fill: var(--clay); }
+  .clab  { font: italic 600 16px var(--serif); fill: var(--ink); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+  .vlab  { font: italic 600 20px var(--serif); fill: var(--ink); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+  .handle { cursor: grab; touch-action: none; outline: none; }
+  .handle.drag { cursor: grabbing; }
+  .handle .hit { fill: transparent; }
+  .handle .vtx { fill: var(--raised); stroke: var(--ink); stroke-width: 2.4; }
+  .handle:hover .vtx, .handle.drag .vtx { fill: var(--accent-soft); }
+  .handle:focus-visible .vtx { stroke: var(--clay); stroke-width: 3.4; }
+
+  .key {
+    list-style: none; margin: 14px 0 0; padding: 0;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 6px 20px;
+    font: .86rem var(--sans); color: var(--ink-soft);
+  }
+  .key li { display: flex; align-items: center; gap: 9px; }
+  .key .sw { width: 22px; height: 0; border-top: 2px solid; flex-shrink: 0; }
+  .key .sw.circ { border-color: var(--ink-soft); }
+  .key .sw.nine { border-color: var(--blue); }
+  .key .sw.inc  { border-color: var(--accent); }
+  .key .sw.euler { border-color: var(--clay); border-top-style: dashed; }
+  .read {
+    margin: 12px 0 0; font: .84rem var(--mono); color: var(--ink);
+    font-variant-numeric: tabular-nums; display: flex; flex-wrap: wrap; gap: 4px 18px;
+  }
+  .read span b { font-weight: 500; color: var(--meta); }
+  .note { margin: 10px 0 0; font-size: .92rem; color: var(--meta); max-width: 62ch; }
+
+  /* -------------------------------------------------------------- tools */
+  .tools {
+    display: grid; grid-template-columns: minmax(0, 560px); gap: 40px;
+    padding: 8px 0 72px;
+  }
+  .tool { display: block; text-decoration: none; border-top: 3px solid var(--ink); padding-top: 18px; }
+  .tool:hover { border-top-color: var(--clay); }
+  .tool svg {
+    width: 34px; height: 34px; margin-bottom: 12px;
+    stroke: var(--accent); fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round;
+  }
+  .tool svg .dot { fill: var(--accent); stroke: none; }
+  .tool h2 { font-size: 1.35rem; font-weight: 600; margin: 0 0 8px; }
+  .tool.lead h2 { font-size: 1.7rem; }
+  .tool p { margin: 0 0 14px; color: var(--ink-soft); max-width: 40ch; }
+  .tool .path { font: .8rem var(--mono); color: var(--meta); }
+  .tool:hover .path { color: var(--clay); text-decoration: underline; }
+
+  footer { border-top: 1px solid var(--line); padding: 20px 0 40px; font: .82rem var(--mono); color: var(--meta); }
+  footer a { color: var(--accent); }
+
+  @media (max-width: 860px) {
+    .hero { grid-template-columns: 1fr; gap: 28px; padding-bottom: 44px; }
+    .tools { grid-template-columns: 1fr; gap: 30px; }
+  }
+  @media (max-width: 480px) {
+    .wrap { padding: 0 16px; }
+  }
+</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='theme.css') }}">
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <a class="wordmark" href="/">GeoLab</a>
+    <nav aria-label="Main">
+      
+      
+      <a href="/app">Full app</a>
+      <a href="/api">API</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div>
+        <h1>Drag a vertex. Watch the centers move.</h1>
+        <p class="lede">GeoLab is a workbench for triangle geometry. Construct figures, look up triangle centers X(1) to X(84000), and solve triangles from lengths and angles alone.</p>
+        <div class="actions">
+          <a class="cta primary" href="/app">Open the app</a>
+          
+        </div>
+      </div>
+
+      <figure class="board">
+        <svg id="fig" viewBox="0 0 640 560" role="group" aria-label="Triangle ABC with its circumcircle, incircle, nine-point circle and Euler line. Drag a vertex, or focus it and use the arrow keys.">
+          <defs>
+            <pattern id="gMinor" width="20" height="20" patternUnits="userSpaceOnUse">
+              <path class="g-minor" d="M20 0H0V20"/>
+            </pattern>
+            <pattern id="gMajor" width="100" height="100" patternUnits="userSpaceOnUse">
+              <rect width="100" height="100" fill="url(#gMinor)"/>
+              <path class="g-major" d="M100 0H0V100"/>
+            </pattern>
+          </defs>
+          <rect width="640" height="560" fill="url(#gMajor)"/>
+
+          <circle id="cCirc" class="circ"/>
+          <circle id="cNine" class="nine"/>
+          <circle id="cIn" class="inc"/>
+          <line id="euler" class="euler"/>
+          <polygon id="tri" class="tri"/>
+
+          <circle id="pI" class="pt i" r="3.6"/>
+          <circle id="pO" class="pt" r="4.4"/>
+          <circle id="pN" class="pt n" r="4.4"/>
+          <circle id="pG" class="pt e" r="4.4"/>
+          <circle id="pH" class="pt" r="4.4"/>
+          <text id="tO" class="clab">O</text>
+          <text id="tN" class="clab">N</text>
+          <text id="tG" class="clab">G</text>
+          <text id="tH" class="clab">H</text>
+
+          <text id="lA" class="vlab">A</text>
+          <text id="lB" class="vlab">B</text>
+          <text id="lC" class="vlab">C</text>
+          <g id="hA" class="handle" tabindex="0" role="button" aria-label="Vertex A. Drag, or use the arrow keys.">
+            <circle class="hit" r="26"/><circle class="vtx" r="6.5"/>
+          </g>
+          <g id="hB" class="handle" tabindex="0" role="button" aria-label="Vertex B. Drag, or use the arrow keys.">
+            <circle class="hit" r="26"/><circle class="vtx" r="6.5"/>
+          </g>
+          <g id="hC" class="handle" tabindex="0" role="button" aria-label="Vertex C. Drag, or use the arrow keys.">
+            <circle class="hit" r="26"/><circle class="vtx" r="6.5"/>
+          </g>
+        </svg>
+
+        <ul class="key">
+          <li><i class="sw circ"></i>Circumcircle, center O = X(3)</li>
+          <li><i class="sw nine"></i>Nine-point circle, center N = X(5)</li>
+          <li><i class="sw inc"></i>Incircle, center I = X(1)</li>
+          <li><i class="sw euler"></i>Euler line through O, G, N, H</li>
+        </ul>
+        <p class="read" id="read" aria-hidden="true"></p>
+        <p class="note">Everything here is computed live from the three vertices. G = X(2) is the centroid and H = X(4) the orthocenter. G always sits one third of the way from O to H.</p>
+      </figure>
+    </section>
+
+    <section class="tools" aria-label="Tools">
+      <a class="tool lead" href="/app">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle class="dot" cx="12" cy="12" r="1.8"/><path d="M12 12l6-4"/></svg>
+        <h2>Full app</h2>
+        <p>Everything in one place: the geometry workspace, triangle solver, encyclopedia lookup X(1) to X(84000), 2D shapes and 3D solids.</p>
+        <span class="path">/app</span>
+      </a>
+    </section>
+  </main>
+
+  <footer>
+    Run locally with <span>python app.py</span>, then open <a href="/">http://127.0.0.1:5000/</a>
+  </footer>
+</div>
+
+<script>
+(function () {
+  const W = 640, H = 560, UNIT = 40, MARGIN = 18, MIN_AREA = 2500;
+  const svg = document.getElementById('fig');
+  const $ = (id) => document.getElementById(id);
+
+  // The three vertices, in SVG pixels (y points down).
+  const P = { A: { x: 200, y: 105 }, B: { x: 92, y: 392 }, C: { x: 540, y: 352 } };
+
+  const dist = (p, q) => Math.hypot(p.x - q.x, p.y - q.y);
+  const area2 = (a, b, c) => (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
+  const setC = (el, p, r) => { el.setAttribute('cx', p.x); el.setAttribute('cy', p.y); if (r != null) el.setAttribute('r', r); };
+  const setT = (el, p) => { el.setAttribute('x', p.x); el.setAttribute('y', p.y); };
+
+  function circumcenter(A, B, C) {
+    const d = 2 * (A.x * (B.y - C.y) + B.x * (C.y - A.y) + C.x * (A.y - B.y));
+    const a2 = A.x * A.x + A.y * A.y, b2 = B.x * B.x + B.y * B.y, c2 = C.x * C.x + C.y * C.y;
+    return {
+      x: (a2 * (B.y - C.y) + b2 * (C.y - A.y) + c2 * (A.y - B.y)) / d,
+      y: (a2 * (C.x - B.x) + b2 * (A.x - C.x) + c2 * (B.x - A.x)) / d,
+    };
+  }
+
+  function update() {
+    const { A, B, C } = P;
+    const a = dist(B, C), b = dist(C, A), c = dist(A, B);
+    const area = Math.abs(area2(A, B, C)) / 2;
+    const O = circumcenter(A, B, C);
+    const R = (a * b * c) / (4 * area);
+    const s = a + b + c;
+    const I = { x: (a * A.x + b * B.x + c * C.x) / s, y: (a * A.y + b * B.y + c * C.y) / s };
+    const r = (2 * area) / s;
+    const G = { x: (A.x + B.x + C.x) / 3, y: (A.y + B.y + C.y) / 3 };
+    const Hc = { x: A.x + B.x + C.x - 2 * O.x, y: A.y + B.y + C.y - 2 * O.y };
+    const N = { x: (O.x + Hc.x) / 2, y: (O.y + Hc.y) / 2 };
+
+    $('tri').setAttribute('points', `${A.x},${A.y} ${B.x},${B.y} ${C.x},${C.y}`);
+    setC($('cCirc'), O, R);
+    setC($('cNine'), N, R / 2);
+    setC($('cIn'), I, r);
+    setC($('pO'), O); setC($('pG'), G); setC($('pH'), Hc); setC($('pN'), N); setC($('pI'), I);
+
+    // Euler line: through O and H, drawn a little past both ends.
+    const ex = Hc.x - O.x, ey = Hc.y - O.y, el = Math.hypot(ex, ey);
+    const euler = $('euler');
+    let nx = 0, ny = -1;                       // label side; replaced below when O != H
+    if (el > 1) {
+      const ux = ex / el, uy = ey / el, ext = 46;
+      euler.setAttribute('x1', O.x - ux * ext); euler.setAttribute('y1', O.y - uy * ext);
+      euler.setAttribute('x2', Hc.x + ux * ext); euler.setAttribute('y2', Hc.y + uy * ext);
+      euler.style.display = '';
+      nx = -uy; ny = ux;                       // unit normal to the line
+      if (ny > 0) { nx = -nx; ny = -ny; }      // prefer the label side that points up the page
+    } else {
+      euler.style.display = 'none';
+    }
+    // O, N and H labels on one side of the line, G on the other, so the
+    // crowded middle of the line stays readable.
+    const off = 17;
+    setT($('tO'), { x: O.x + nx * off,  y: O.y + ny * off });
+    setT($('tN'), { x: N.x + nx * off,  y: N.y + ny * off });
+    setT($('tH'), { x: Hc.x + nx * off, y: Hc.y + ny * off });
+    setT($('tG'), { x: G.x - nx * off,  y: G.y - ny * off });
+
+    // Vertex handles and letters (letters sit outside, away from the centroid).
+    for (const k of ['A', 'B', 'C']) {
+      const p = P[k];
+      $('h' + k).setAttribute('transform', `translate(${p.x} ${p.y})`);
+      const dx = p.x - G.x, dy = p.y - G.y, dl = Math.hypot(dx, dy) || 1;
+      setT($('l' + k), { x: p.x + (dx / dl) * 26, y: p.y + (dy / dl) * 26 });
+    }
+
+    const u = (v) => (v / UNIT).toFixed(2);
+    $('read').innerHTML =
+      `<span><b>a</b> ${u(a)}</span><span><b>b</b> ${u(b)}</span><span><b>c</b> ${u(c)}</span>` +
+      `<span><b>R</b> ${u(R)}</span><span><b>r</b> ${u(r)}</span>`;
+  }
+
+  function move(k, x, y) {
+    x = Math.min(W - MARGIN, Math.max(MARGIN, x));
+    y = Math.min(H - MARGIN, Math.max(MARGIN, y));
+    const q = { ...P, [k]: { x, y } };
+    if (Math.abs(area2(q.A, q.B, q.C)) / 2 < MIN_AREA) return;   // keep it a real triangle
+    P[k] = { x, y };
+    update();
+  }
+
+  function toSvg(e) {
+    const m = svg.getScreenCTM();
+    if (!m) return { x: e.clientX, y: e.clientY };
+    const pt = svg.createSVGPoint();
+    pt.x = e.clientX; pt.y = e.clientY;
+    return pt.matrixTransform(m.inverse());
+  }
+
+  let active = null;
+  for (const k of ['A', 'B', 'C']) {
+    const g = $('h' + k);
+    g.addEventListener('pointerdown', (e) => {
+      active = k; g.classList.add('drag');
+      try { g.setPointerCapture(e.pointerId); } catch (_) {}
+      e.preventDefault();
+    });
+    g.addEventListener('pointermove', (e) => {
+      if (active !== k) return;
+      const p = toSvg(e);
+      move(k, p.x, p.y);
+    });
+    const end = () => { if (active === k) { active = null; g.classList.remove('drag'); } };
+    g.addEventListener('pointerup', end);
+    g.addEventListener('pointercancel', end);
+    g.addEventListener('keydown', (e) => {
+      const step = e.shiftKey ? 24 : 8;
+      const d = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
+      if (!d) return;
+      e.preventDefault();
+      move(k, P[k].x + d[0], P[k].y + d[1]);
+    });
+  }
+
+  update();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Statement Verifier</title>
+<style>
+  :root {
+    --ink: #1c2321;
+    --paper: #f6f4ee;
+    --line: #cfc9ba;
+    --accent: #2f5d50;
+    --accent-soft: #e4ede9;
+    --warn: #8a5a00;
+    --warn-bg: #fff4d6;
+    --bad: #9b2c2c;
+    --bad-bg: #fde8e8;
+    --good: #22683e;
+    --good-bg: #e7f5ec;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Georgia', 'Iowan Old Style', serif;
+    background: var(--paper);
+    color: var(--ink);
+    display: flex;
+    min-height: 100vh;
+  }
+  .math, code, textarea, input[type=text] {
+    font-family: 'Cambria Math', 'STIX Two Math', ui-monospace, Menlo, Consolas, monospace;
+  }
+  #left {
+    width: 420px; flex-shrink: 0;
+    padding: 24px 22px;
+    border-right: 1px solid var(--line);
+    display: flex; flex-direction: column; gap: 14px;
+    overflow-y: auto;
+    height: 100vh; position: sticky; top: 0;
+  }
+  #right { flex: 1; padding: 28px 36px; max-width: 900px; }
+  h1 { font-size: 1.3rem; margin: 0 0 4px 0; font-weight: 600; }
+  h2 {
+    font: 600 0.72rem -apple-system, sans-serif;
+    text-transform: uppercase; letter-spacing: .08em;
+    color: #7a7a70; margin: 0 0 6px 0;
+  }
+  p.hint { margin: 0; font-size: 0.86rem; color: #5b5b52; line-height: 1.5; }
+  .nav a { font: 0.8rem -apple-system, sans-serif; color: var(--accent); margin-right: 12px; }
+
+  label.fieldlabel { display: block; font: 600 0.78rem -apple-system, sans-serif; margin-bottom: 4px; }
+  textarea, input[type=text], input[type=number] {
+    width: 100%; font-size: 0.85rem; padding: 8px; border: 1px solid var(--line);
+    border-radius: 3px; background: #fff; color: var(--ink);
+  }
+  textarea:focus, input:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+  textarea.points { height: 110px; resize: vertical; }
+  textarea.measures { height: 130px; resize: vertical; }
+  .small { font-size: 0.78rem; color: #7a7a70; margin-top: 3px; }
+
+  .toggle-row { display: flex; align-items: center; gap: 8px; font: 0.82rem -apple-system, sans-serif; }
+
+  button.btn {
+    font: inherit; font-size: 0.88rem;
+    padding: 9px 14px; border: 1px solid var(--ink);
+    background: var(--paper); color: var(--ink);
+    border-radius: 3px; cursor: pointer;
+  }
+  button.btn:hover { background: var(--accent-soft); }
+  button.btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  button.btn.primary:hover { filter: brightness(1.08); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .examples button {
+    font: 0.78rem -apple-system, sans-serif; padding: 5px 9px;
+    border: 1px solid var(--line); background: #fff; border-radius: 12px;
+    cursor: pointer; text-align: left;
+  }
+  .examples button:hover { background: var(--accent-soft); border-color: var(--accent); }
+  .examples .row { flex-direction: column; align-items: stretch; }
+
+  .empty { color: #8a8a80; font-style: italic; margin-top: 40px; }
+  .section { margin-bottom: 22px; }
+  .section h3 {
+    font: 600 0.78rem -apple-system, sans-serif;
+    text-transform: uppercase; letter-spacing: .08em; color: var(--accent);
+    margin: 0 0 10px 0; padding-bottom: 5px; border-bottom: 1px solid var(--line);
+  }
+  .verdict {
+    padding: 14px 16px; border-radius: 4px; font: 600 0.95rem -apple-system, sans-serif;
+    margin-bottom: 18px;
+  }
+  .verdict.good { background: var(--good-bg); color: var(--good); }
+  .verdict.bad { background: var(--bad-bg); color: var(--bad); }
+  .kv { display: grid; grid-template-columns: 120px 1fr; gap: 4px 12px; font-size: 0.92rem; }
+  .kv .k { text-align: right; color: #6b6b60; }
+  .banner { padding: 10px 14px; border-radius: 4px; font: 0.86rem -apple-system, sans-serif; margin-bottom: 10px; line-height: 1.5; }
+  .banner.warn { background: var(--warn-bg); color: var(--warn); }
+  .banner.err { background: var(--bad-bg); color: var(--bad); }
+  .diagram-result {
+    border: 1px solid var(--line); border-radius: 4px; padding: 10px 14px; margin-bottom: 10px;
+  }
+  .diagram-result .head { display: flex; justify-content: space-between; align-items: center; font: 600 0.85rem -apple-system, sans-serif; }
+  .diagram-result .ok { color: var(--good); }
+  .diagram-result .no { color: var(--bad); }
+</style>
+</head>
+<body>
+
+<div id="left">
+  <div>
+    <div class="nav"><a href="/">&larr; Home</a><a href="/geometry">Geometry</a><a href="/solver">Solver</a></div>
+    <h1 style="margin-top:10px;">Statement Verifier</h1>
+    <p class="hint">
+      Give a <b>diagram</b> (named points, e.g. A, B, C, P) and a
+      <b>statement</b> &mdash; an equation. It's checked numerically. This
+      cannot prove a theorem, but it <b>can disprove</b> one instantly: if
+      the two sides disagree for even one diagram, the statement is false
+      as written.
+    </p>
+  </div>
+
+  <div class="examples">
+    <h2>Try an example</h2>
+    <div class="row">
+      <button data-ex="angle_sum">Angle sum = 180&deg; (true)</button>
+      <button data-ex="cevian_false">Cevian inradii identity (false, single diagram)</button>
+      <button data-ex="cevian_multi">Same identity across 3 triangles</button>
+      <button data-ex="centroid_ratio">Median ratio 2:1 (true)</button>
+    </div>
+  </div>
+
+  <div>
+    <label class="fieldlabel" for="pointsBox">Diagram &mdash; points (JSON)</label>
+    <textarea class="points" id="pointsBox" spellcheck="false"></textarea>
+    <div class="small">One diagram: <code>{"A": [0,4], "B": [0,0], "C": [6,0]}</code></div>
+  </div>
+
+  <div class="toggle-row">
+    <input type="checkbox" id="multiToggle">
+    <label for="multiToggle">Multi-diagram mode (test the same statement on several triangles)</label>
+  </div>
+  <div id="multiWrap" style="display:none;">
+    <label class="fieldlabel" for="diagramsBox">Diagrams &mdash; list of point-sets (JSON)</label>
+    <textarea class="points" id="diagramsBox" spellcheck="false"></textarea>
+    <div class="small">e.g. <code>[{"A":[0,4],...}, {"A":[1,5],...}]</code></div>
+  </div>
+
+  <div>
+    <label class="fieldlabel" for="measuresBox">Measures (optional, JSON)</label>
+    <textarea class="measures" id="measuresBox" spellcheck="false"></textarea>
+    <div class="small">Named shortcuts, e.g. <code>{"r": "inradius(A,B,C)", "m": "dist(B,P)"}</code>.
+      Functions: dist(P,Q), area/perimeter/inradius/circumradius(P,Q,R), angle(P,Q,R) [at Q, degrees].</div>
+  </div>
+
+  <div>
+    <label class="fieldlabel" for="statementBox">Statement (one equation, "=" required)</label>
+    <input type="text" id="statementBox" autocomplete="off" placeholder="e.g. r > 0  -- no, must be '=': e.g. angA + angB + angC = 180">
+    <div class="small">Plain English can't be auto-checked here &mdash; formalize it first, or discuss it in chat.</div>
+  </div>
+
+  <div class="row">
+    <label class="fieldlabel" style="align-self:center;" for="tolBox">tolerance</label>
+    <input type="number" id="tolBox" value="0.000001" step="any" style="width:120px;">
+  </div>
+
+  <div class="row">
+    <button class="btn primary" id="verifyBtn">Verify</button>
+    <button class="btn" id="clearBtn">Clear</button>
+  </div>
+</div>
+
+<div id="right">
+  <div id="out"><div class="empty">Pick an example on the left, or fill in a diagram and statement, then press <b>Verify</b>.</div></div>
+</div>
+
+<script>
+const EXAMPLES = {
+  angle_sum: {
+    points: {A:[0,4], B:[0,0], C:[6,0]},
+    measures: {angA: "angle(B,A,C)", angB: "angle(A,B,C)", angC: "angle(A,C,B)"},
+    statement: "angA + angB + angC = 180",
+    multi: false,
+  },
+  cevian_false: {
+    points: {A:[0,4], B:[0,0], C:[6,0], P:[2,0]},
+    measures: {
+      r: "inradius(A,B,C)", r2: "inradius(A,B,P)", r3: "inradius(A,P,C)",
+      m: "dist(B,P)", n: "dist(P,C)", u: "dist(A,P)",
+    },
+    statement: "1/r2 + 1/r3 = 2/r + u*(m+n)/(m*n*r)",
+    multi: false,
+  },
+  cevian_multi: {
+    diagrams: [
+      {A:[0,4], B:[0,0], C:[6,0], P:[2,0]},
+      {A:[1,5], B:[0,0], C:[7,1], P:[2.8,0.4]},
+      {A:[2,6], B:[-3,-1], C:[5,-2], P:[1.3,-1.65]},
+    ],
+    measures: {
+      r: "inradius(A,B,C)", r2: "inradius(A,B,P)", r3: "inradius(A,P,C)",
+      m: "dist(B,P)", n: "dist(P,C)", u: "dist(A,P)",
+    },
+    statement: "1/r2 + 1/r3 = 2/r + u*(m+n)/(m*n*r)",
+    multi: true,
+  },
+  centroid_ratio: {
+    points: {A:[0,6], B:[0,0], C:[8,0], G:[8/3,2], M:[4,0]},
+    measures: {AG: "dist(A,G)", GM: "dist(G,M)"},
+    statement: "AG = 2*GM",
+    multi: false,
+  },
+};
+
+const pointsBox = document.getElementById('pointsBox');
+const diagramsBox = document.getElementById('diagramsBox');
+const measuresBox = document.getElementById('measuresBox');
+const statementBox = document.getElementById('statementBox');
+const tolBox = document.getElementById('tolBox');
+const multiToggle = document.getElementById('multiToggle');
+const multiWrap = document.getElementById('multiWrap');
+const out = document.getElementById('out');
+
+multiToggle.addEventListener('change', () => {
+  multiWrap.style.display = multiToggle.checked ? 'block' : 'none';
+});
+
+document.querySelectorAll('[data-ex]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const ex = EXAMPLES[btn.dataset.ex];
+    multiToggle.checked = !!ex.multi;
+    multiWrap.style.display = ex.multi ? 'block' : 'none';
+    pointsBox.value = ex.points ? JSON.stringify(ex.points, null, 2) : '';
+    diagramsBox.value = ex.diagrams ? JSON.stringify(ex.diagrams, null, 2) : '';
+    measuresBox.value = JSON.stringify(ex.measures || {}, null, 2);
+    statementBox.value = ex.statement;
+    verify();
+  });
+});
+
+document.getElementById('clearBtn').addEventListener('click', () => {
+  pointsBox.value = ''; diagramsBox.value = ''; measuresBox.value = ''; statementBox.value = '';
+  out.innerHTML = '<div class="empty">Pick an example on the left, or fill in a diagram and statement, then press <b>Verify</b>.</div>';
+});
+
+const esc = (s) => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const num = (v) => (typeof v === 'number') ? v.toPrecision(7).replace(/\.?0+$/, '').replace(/\.?0+e/, 'e') : v;
+
+function parseJsonField(box, fallback) {
+  const raw = box.value.trim();
+  if (!raw) return fallback;
+  return JSON.parse(raw);
+}
+
+async function verify() {
+  let body;
+  try {
+    const measures = parseJsonField(measuresBox, {});
+    const statement = statementBox.value.trim();
+    const tolerance = parseFloat(tolBox.value) || 1e-6;
+    if (multiToggle.checked) {
+      body = { diagrams: parseJsonField(diagramsBox, []), measures, statement, tolerance };
+    } else {
+      body = { points: parseJsonField(pointsBox, {}), measures, statement, tolerance };
+    }
+  } catch (e) {
+    out.innerHTML = `<div class="banner err"><b>INVALID_JSON</b> &mdash; Could not parse one of the JSON fields: ${esc(e.message)}</div>`;
+    return;
+  }
+
+  out.innerHTML = '<div class="empty">Verifying&hellip;</div>';
+  let data;
+  try {
+    const res = await fetch('/api/verify', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    data = await res.json();
+  } catch (e) {
+    out.innerHTML = '<div class="banner err">Could not reach the server. Is <code>python app.py</code> running?</div>';
+    return;
+  }
+
+  if (data.status !== 'ok') {
+    out.innerHTML = `<div class="banner err"><b>${esc(data.error_code || 'ERROR')}</b> &mdash; ${esc(data.message || '')}</div>`;
+    return;
+  }
+
+  if ('results' in data) {
+    render_multi(data);
+  } else {
+    render_single(data);
+  }
+}
+
+function render_single(d) {
+  let h = '';
+  h += `<div class="verdict ${d.holds ? 'good' : 'bad'}">${d.holds ? '\u2713 Holds' : '\u2717 Does not hold'} for this diagram (tolerance ${num(d.tolerance)})</div>`;
+  h += '<div class="section"><h3>Statement</h3><p class="math" style="font-size:1.05rem;">' + esc(d.statement) + '</p></div>';
+  h += '<div class="section"><h3>Values</h3><div class="kv">';
+  h += `<div class="k">LHS</div><div>${num(d.lhs_value)}</div>`;
+  h += `<div class="k">RHS</div><div>${num(d.rhs_value)}</div>`;
+  h += `<div class="k">difference</div><div>${num(d.difference)}</div>`;
+  h += '</div></div>';
+  if (Object.keys(d.measures).length) {
+    h += '<div class="section"><h3>Measures</h3><div class="kv">';
+    for (const [k, v] of Object.entries(d.measures)) h += `<div class="k">${esc(k)}</div><div>${num(v)}</div>`;
+    h += '</div></div>';
+  }
+  h += '<div class="section"><h3>Points</h3><div class="kv">';
+  for (const [k, v] of Object.entries(d.points)) h += `<div class="k">${esc(k)}</div><div>(${num(v[0])}, ${num(v[1])})</div>`;
+  h += '</div></div>';
+  out.innerHTML = h;
+}
+
+function render_multi(d) {
+  let h = '';
+  h += `<div class="verdict ${d.holds_for_all ? 'good' : 'bad'}">${esc(d.verdict)}</div>`;
+  h += '<div class="section"><h3>Statement</h3><p class="math" style="font-size:1.05rem;">' + esc(d.statement) + '</p></div>';
+  h += `<div class="section"><h3>Per-diagram results (${d.diagram_count})</h3>`;
+  d.results.forEach((r) => {
+    if (r.status === 'ok') {
+      h += `<div class="diagram-result"><div class="head"><span>Diagram ${r.diagram_index + 1}</span>` +
+           `<span class="${r.holds ? 'ok' : 'no'}">${r.holds ? '\u2713 holds' : '\u2717 fails'}</span></div>` +
+           `<div class="small">LHS = ${num(r.lhs_value)},&nbsp; RHS = ${num(r.rhs_value)},&nbsp; diff = ${num(r.difference)}</div></div>`;
+    } else {
+      h += `<div class="diagram-result"><div class="head"><span>Diagram ${r.diagram_index + 1}</span>` +
+           `<span class="no">error</span></div>` +
+           `<div class="small">${esc(r.error_code)}: ${esc(r.message)}</div></div>`;
+    }
+  });
+  h += '</div>';
+  out.innerHTML = h;
+}
+
+document.getElementById('verifyBtn').addEventListener('click', verify);
+statementBox.addEventListener('keydown', (e) => { if (e.key === 'Enter') verify(); });
+</script>
+</body>
+</html>

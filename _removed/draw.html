@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GeoLab &mdash; Triangle Drawing</title>
+<style>
+  :root { --ink:#1c2321; --soft:#4a4a42; --meta:#8a8578; --paper:#f6f4ee; --raised:#fdfcf9; --line:#d9d4c4; --accent:#2f5d50; --accent-soft:#e4ede9;
+          --G:#2f7d4f; --O:#2b5fa8; --I:#c7791f; --H:#b23a3a; --N:#7b4fa0; --X:#555; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:20px; font-family:Georgia,'Iowan Old Style',serif; background:var(--paper); color:var(--ink); }
+  header { display:flex; align-items:baseline; gap:16px; margin-bottom:14px; }
+  header h1 { font-size:1.4rem; margin:0; }
+  header a { color:var(--accent); font-size:.9rem; }
+  .wrap { display:flex; flex-wrap:wrap; gap:16px; align-items:flex-start; }
+  aside { width:300px; flex:0 0 auto; }
+  .stage { flex:1; min-width:320px; }
+  .box { background:var(--raised); border:1px solid var(--line); border-radius:6px; padding:12px 14px; margin-bottom:12px; }
+  .box h2 { font-size:.8rem; text-transform:uppercase; letter-spacing:.08em; color:var(--meta); margin:0 0 8px; font-weight:600; }
+  label.chk { display:block; font-size:.9rem; padding:2px 0; cursor:pointer; }
+  .coords { display:grid; grid-template-columns:auto 1fr 1fr; gap:6px 8px; align-items:center; font-size:.9rem; }
+  input[type=number] { width:100%; padding:4px 6px; border:1px solid var(--line); border-radius:4px; background:#fff; font:inherit; }
+  button, select { font:inherit; font-size:.85rem; padding:4px 10px; border:1px solid var(--line); border-radius:4px; background:#fff; cursor:pointer; }
+  button:hover { border-color:var(--accent); }
+  .presets button { margin:0 4px 4px 0; }
+  .row { display:flex; gap:6px; } .row select { flex:1; min-width:0; }
+  .chips span { display:inline-block; background:var(--accent-soft); border-radius:12px; padding:1px 9px; margin:6px 4px 0 0; font-size:.8rem; cursor:pointer; }
+  table { width:100%; border-collapse:collapse; font:.8rem ui-monospace,Consolas,monospace; }
+  td { padding:2px 0; } td:first-child { color:var(--meta); }
+  .dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:5px; }
+  #msg { color:var(--H); font-size:.85rem; min-height:1.2em; margin-bottom:6px; }
+  svg { width:100%; height:auto; background:var(--raised); border:1px solid var(--line); border-radius:6px; touch-action:none; display:block; }
+  .grid { stroke:#ece8da; stroke-width:1; } .axis { stroke:#c9c3ae; stroke-width:1.5; }
+  .tri { fill:rgba(47,93,80,.08); stroke:var(--accent); stroke-width:2; } .tri.bad { stroke:var(--H); fill:none; stroke-dasharray:5 4; }
+  .circ { fill:none; stroke-width:1.6; }
+  .ln { stroke-width:1.3; stroke-dasharray:6 4; fill:none; }
+  .handle { fill:var(--accent); stroke:#fff; stroke-width:2; cursor:grab; }
+  text { font:600 13px Georgia,serif; paint-order:stroke; stroke:var(--raised); stroke-width:3px; pointer-events:none; }
+</style>
+</head>
+<body>
+<header><h1>Triangle Drawing</h1><a href="/">&larr; Home</a>
+  <span style="color:var(--meta);font-size:.85rem">Drag A, B or C. Everything is computed by the server.</span></header>
+
+<div class="wrap">
+<aside>
+  <div class="box"><h2>Vertices</h2>
+    <div class="coords">
+      <b>A</b><input type="number" step="0.1" id="c0x"><input type="number" step="0.1" id="c0y">
+      <b>B</b><input type="number" step="0.1" id="c1x"><input type="number" step="0.1" id="c1y">
+      <b>C</b><input type="number" step="0.1" id="c2x"><input type="number" step="0.1" id="c2y">
+    </div>
+    <div class="presets" style="margin-top:10px">
+      <button data-preset="scalene">Acute</button><button data-preset="right">Right</button>
+      <button data-preset="obtuse">Obtuse</button><button data-preset="equilateral">Equilateral</button>
+      <button data-preset="isosceles">Isosceles</button>
+    </div>
+  </div>
+  <div class="box"><h2>Show</h2>
+    <label class="chk"><input type="checkbox" data-show="euler" checked> Euler line</label>
+    <label class="chk"><input type="checkbox" data-show="circum" checked> Circumcircle</label>
+    <label class="chk"><input type="checkbox" data-show="incircle" checked> Incircle</label>
+    <label class="chk"><input type="checkbox" data-show="nine" checked> Nine-point circle</label>
+    <label class="chk"><input type="checkbox" data-show="medians"> Medians</label>
+    <label class="chk"><input type="checkbox" data-show="altitudes"> Altitudes</label>
+  </div>
+  <div class="box"><h2>Kimberling centers</h2>
+    <div class="row"><select id="xsel"></select><button id="xadd">Add</button></div>
+    <div class="chips" id="chips"></div>
+  </div>
+  <div class="box"><h2>Measurements</h2><div id="info"></div></div>
+</aside>
+<div class="stage">
+  <div id="msg"></div>
+  <svg id="svg" viewBox="0 0 900 600"><defs><clipPath id="clip"><rect width="900" height="600"/></clipPath></defs><g id="layer" clip-path="url(#clip)"></g></svg>
+</div>
+</div>
+
+<script>
+const S = 50, OX = 100, OY = 520, VW = 900, VH = 600, NS = 'http://www.w3.org/2000/svg';
+const PRESETS = {
+  scalene: [[1,1],[10,1],[4,7]], right: [[1,1],[7,1],[1,5]], obtuse: [[1,1],[11,1],[3,2.5]],
+  equilateral: [[2,1],[10,1],[6,1+4*Math.sqrt(3)]], isosceles: [[2,1],[10,1],[6,8]],
+};
+const COL = {G:'#2f7d4f', O:'#2b5fa8', I:'#c7791f', H:'#b23a3a', N:'#7b4fa0'};
+let tri = JSON.parse(JSON.stringify(PRESETS.scalene));
+const show = {};
+document.querySelectorAll('[data-show]').forEach(c => show[c.dataset.show] = c.checked);
+const extras = new Set();
+let data = null, busy = false, dirty = false, drag = null, selKey = '';
+const $ = id => document.getElementById(id), svg = $('svg');
+const px = (p) => [OX + p.x * S, OY - p.y * S];
+const f3 = v => (+v).toFixed(3);
+
+function el(tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function line(g, p, q, attrs) { const [x1,y1] = px(p), [x2,y2] = px(q); return el('line', {x1,y1,x2,y2, ...attrs}, g); }
+function label(g, text, p, color, dx=8, dy=-8) { const [x,y] = px(p); const t = el('text', {x:x+dx, y:y+dy, fill:color}, g); t.textContent = text; }
+function point(g, name, p, color) { const [x,y] = px(p); el('circle', {cx:x, cy:y, r:5, fill:color}, g); label(g, name, p, color); }
+function circle(g, c, color) { const [x,y] = px(c.center); el('circle', {cx:x, cy:y, r:c.radius*S, class:'circ', stroke:color}, g); }
+
+function draw() {
+  const g = $('layer'); g.textContent = '';
+  for (let x = Math.ceil(-OX/S); x <= Math.floor((VW-OX)/S); x++) { const X = OX + x*S; el('line', {x1:X, y1:0, x2:X, y2:VH, class: x ? 'grid' : 'axis'}, g); }
+  for (let y = Math.ceil((OY-VH)/S); y <= Math.floor(OY/S); y++) { const Y = OY - y*S; el('line', {x1:0, y1:Y, x2:VW, y2:Y, class: y ? 'grid' : 'axis'}, g); }
+  const V = tri.map(p => ({x:p[0], y:p[1]}));
+  if (data) {
+    const c = data.centers, mid = data.midpoints, ft = data.altitude_feet;
+    if (show.circum) circle(g, data.circles.circumcircle, COL.O);
+    if (show.incircle) circle(g, data.circles.incircle, COL.I);
+    if (show.nine) circle(g, data.circles.nine_point_circle, COL.N);
+    ['A','B','C'].forEach((k, i) => {
+      if (show.medians) line(g, V[i], mid[k], {class:'ln', stroke:COL.G});
+      if (show.altitudes) line(g, V[i], ft[k], {class:'ln', stroke:COL.H});
+    });
+    if (show.euler && data.euler) {
+      const p = data.euler.point, d = data.euler.direction, L = 80;
+      line(g, {x:p.x - L*d.x, y:p.y - L*d.y}, {x:p.x + L*d.x, y:p.y + L*d.y}, {class:'ln', stroke:COL.H, 'stroke-width':1.8});
+    }
+  }
+  el('polygon', {points: V.map(p => px(p).join(',')).join(' '), class: data ? 'tri' : 'tri bad'}, g);
+  if (data) {
+    for (const k of ['G','O','I','H','N']) point(g, k, data.centers[k], COL[k]);
+    for (const x of data.verified_centers) if (extras.has(x.id)) point(g, 'X' + x.id, x, '#555');
+  }
+  const gx = V.reduce((s,p) => s + p.x, 0) / 3, gy = V.reduce((s,p) => s + p.y, 0) / 3;
+  V.forEach((p, i) => {
+    const [x, y] = px(p);
+    el('circle', {cx:x, cy:y, r:9, class:'handle', 'data-i':i}, g);
+    const dx = p.x - gx, dy = gy - p.y, n = Math.hypot(dx, dy) || 1;
+    const t = el('text', {x:x + dx/n*22 - 5, y:y + dy/n*22 + 5, fill:'#1c2321'}, g); t.textContent = 'ABC'[i];
+  });
+}
+
+function info() {
+  if (!data) { $('info').innerHTML = ''; return; }
+  const s = data.side_lengths, a = data.angles_degrees, c = data.centers;
+  let h = `<table><tr><td>type</td><td>${data.triangle_type}</td></tr><tr><td>area</td><td>${f3(data.area)}</td></tr>
+    <tr><td>a, b, c</td><td>${f3(s.a)}, ${f3(s.b)}, ${f3(s.c)}</td></tr>
+    <tr><td>A, B, C</td><td>${f3(a.A)}&deg;, ${f3(a.B)}&deg;, ${f3(a.C)}&deg;</td></tr>
+    <tr><td>R, r</td><td>${f3(data.circles.circumcircle.radius)}, ${f3(data.circles.incircle.radius)}</td></tr>`;
+  for (const k of ['G','O','I','H','N']) h += `<tr><td><span class="dot" style="background:${COL[k]}"></span>${k}</td><td>(${f3(c[k].x)}, ${f3(c[k].y)})</td></tr>`;
+  $('info').innerHTML = h + '</table>';
+}
+
+function syncInputs() {
+  tri.forEach((p, i) => { for (const j of [0, 1]) { const inp = $(`c${i}${'xy'[j]}`); if (document.activeElement !== inp) inp.value = Math.round(p[j] * 1000) / 1000; } });
+}
+
+function fillSelect() {
+  const list = data.verified_centers, key = list.map(x => x.id).join(',');
+  if (key === selKey) return;
+  selKey = key; const sel = $('xsel'), old = sel.value; sel.textContent = '';
+  for (const x of list) { const o = document.createElement('option'); o.value = x.id; o.textContent = `X(${x.id}) ${x.name}`; sel.appendChild(o); }
+  if (old) sel.value = old;
+}
+
+function chips() {
+  const box = $('chips'); box.textContent = '';
+  extras.forEach(id => { const s = document.createElement('span'); s.textContent = `X(${id}) \u00d7`; s.onclick = () => { extras.delete(id); chips(); draw(); }; box.appendChild(s); });
+}
+
+async function refresh() {
+  if (busy) { dirty = true; return; }
+  busy = true;
+  try {
+    const q = tri.map(p => `(${p[0]},${p[1]})`).join(',');
+    const j = await (await fetch('/api/construction?triangle=' + encodeURIComponent(q))).json();
+    if (j.status === 'ok') { data = j; $('msg').textContent = ''; fillSelect(); }
+    else { data = null; $('msg').textContent = j.message || 'Invalid triangle.'; }
+  } catch (e) { data = null; $('msg').textContent = 'Could not reach the server.'; }
+  busy = false; draw(); info(); syncInputs();
+  if (dirty) { dirty = false; refresh(); }
+}
+
+function toWorld(e) {
+  const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+  const m = pt.matrixTransform(svg.getScreenCTM().inverse());
+  return [Math.round((m.x - OX) / S * 10) / 10, Math.round((OY - m.y) / S * 10) / 10];
+}
+svg.addEventListener('pointerdown', e => { const i = e.target.dataset && e.target.dataset.i; if (i === undefined) return; drag = +i; svg.setPointerCapture(e.pointerId); });
+svg.addEventListener('pointermove', e => { if (drag === null) return; tri[drag] = toWorld(e); refresh(); });
+svg.addEventListener('pointerup', () => { drag = null; });
+
+for (let i = 0; i < 3; i++) for (let j = 0; j < 2; j++) $(`c${i}${'xy'[j]}`).addEventListener('change', e => {
+  const v = parseFloat(e.target.value); if (!isNaN(v)) { tri[i][j] = v; refresh(); }
+});
+document.querySelectorAll('[data-show]').forEach(c => c.addEventListener('change', () => { show[c.dataset.show] = c.checked; draw(); }));
+document.querySelectorAll('[data-preset]').forEach(b => b.addEventListener('click', () => { tri = JSON.parse(JSON.stringify(PRESETS[b.dataset.preset])); refresh(); }));
+$('xadd').addEventListener('click', () => { const v = parseInt($('xsel').value, 10); if (!isNaN(v)) { extras.add(v); chips(); draw(); } });
+
+syncInputs(); refresh();
+</script>
+</body>
+</html>

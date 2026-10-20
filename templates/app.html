@@ -1,0 +1,1914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GeoLab — Triangle Centers, Shapes &amp; Solids</title>
+<style>
+  :root {
+    --ink: #141815;
+    --ink-soft: #4a4a42;
+    --meta: #8a8578;
+    --paper: #f7f5ef;
+    --paper-raised: #fdfcf9;
+    --line: #d9d4c4;
+    --line-strong: #b8b19d;
+    --pine: #2f5d50;
+    --pine-soft: #e4ede9;
+    --clay: #c9622a;
+    --clay-soft: #f3e3d8;
+    --blue: #3a5a9b;
+    --blue-soft: #e3e8f2;
+    --err: #a3352b;
+    --err-soft: #f5e2df;
+    --serif: 'Iowan Old Style', 'Palatino Linotype', Georgia, 'Times New Roman', serif;
+    --mono: ui-monospace, 'SF Mono', Menlo, 'Cascadia Mono', Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    font-family: var(--serif);
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex;
+  }
+  ::selection { background: var(--pine-soft); color: var(--pine); }
+  :focus-visible { outline: 2px solid var(--clay); outline-offset: 2px; }
+
+  a { color: inherit; }
+
+  /* ---------- Rail ---------- */
+  #rail {
+    width: 236px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    padding: 26px 0 18px;
+    height: 100vh;
+    position: sticky;
+    top: 0;
+  }
+  #brand {
+    padding: 0 22px 20px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 6px;
+  }
+  #brand .mark {
+    width: 30px; height: 30px;
+    margin-bottom: 12px;
+  }
+  #brand h1 {
+    font-size: 1.02rem;
+    line-height: 1.3;
+    margin: 0 0 3px;
+    font-weight: 600;
+    letter-spacing: 0.005em;
+  }
+  #brand p {
+    margin: 0;
+    font-size: 0.74rem;
+    color: var(--meta);
+    font-family: var(--mono);
+    letter-spacing: 0.01em;
+  }
+
+  nav { padding: 14px 12px; flex: 1; overflow-y: auto; }
+  .nav-item {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    font-family: var(--serif);
+    font-size: 0.92rem;
+    color: var(--ink-soft);
+    padding: 9px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    line-height: 1.3;
+  }
+  .nav-item .n {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--line-strong);
+    width: 14px;
+    flex-shrink: 0;
+  }
+  .nav-item:hover { background: var(--paper-raised); color: var(--ink); }
+  .nav-item.active {
+    background: var(--pine-soft);
+    color: var(--pine);
+    font-weight: 600;
+  }
+  .nav-item.active .n { color: var(--pine); }
+
+  #railFoot {
+    padding: 14px 22px 0;
+    border-top: 1px solid var(--line);
+    font-size: 0.72rem;
+    color: var(--meta);
+    font-family: var(--mono);
+  }
+  #railFoot code {
+    display: block;
+    margin-top: 4px;
+    color: var(--ink-soft);
+  }
+
+  /* mobile rail toggle */
+  #railToggle { display: none; }
+  /* Desktop: a small button hides / shows the whole left menu (GeoLab, Geometry
+     Workspace, 2D, 3D ...) so the work area gets the full window width. */
+  @media (min-width: 861px) {
+    #railToggle {
+      display: flex; position: fixed; top: 12px; left: 192px; z-index: 41;
+      width: 32px; height: 32px; align-items: center; justify-content: center;
+      background: var(--paper); color: var(--ink);
+      border: 1px solid var(--line-strong); border-radius: 4px;
+      cursor: pointer; font-size: 1rem; padding: 0;
+    }
+    #railToggle:hover { background: var(--pine-soft); }
+    body.rail-hidden #rail { display: none; }
+    body.rail-hidden #railToggle { left: 8px; top: 8px; }
+    body.rail-hidden main { padding-left: 52px; }
+    body.rail-hidden main:has(#pane-workspace.active),
+    body.rail-hidden main:has(#pane-solver.active) { padding: 10px 14px 10px 52px; }
+  }
+
+  /* ---------- Main ---------- */
+  main {
+    flex: 1;
+    min-width: 0;
+    padding: 40px 48px 80px;
+    max-width: 980px;
+  }
+  section.pane { display: none; }
+  section.pane.active { display: block; }
+
+  /* The workspace tab needs far more room than the form-style tabs, so when
+     it is open the main column is allowed to fill the whole window. */
+  main:has(#pane-workspace.active),
+  main:has(#pane-solver.active) { max-width: none; padding: 10px 14px 10px; }
+
+  /* In the workspace tab the drawing area is what matters, so the big
+     heading/description is hidden and the frame takes the full window height. */
+  #pane-workspace .pane-head,
+  #pane-solver .pane-head { display: none; }
+
+  .pane-head { margin-bottom: 30px; }
+  .pane-head .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.74rem;
+    color: var(--clay);
+    margin: 0 0 8px;
+  }
+  .pane-head h2 {
+    font-size: 1.7rem;
+    margin: 0 0 8px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+  }
+  .pane-head p {
+    margin: 0;
+    max-width: 62ch;
+    color: var(--ink-soft);
+    line-height: 1.55;
+    font-size: 0.97rem;
+  }
+
+  /* ---------- Cards / groups (used sparingly, for tool groupings) ---------- */
+  .tool-group {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: var(--paper-raised);
+    padding: 20px 22px;
+    margin-bottom: 20px;
+  }
+  .tool-group h3 {
+    font-size: 0.98rem;
+    margin: 0 0 4px;
+    font-weight: 600;
+  }
+  .tool-group .desc {
+    font-size: 0.83rem;
+    color: var(--meta);
+    margin: 0 0 16px;
+    line-height: 1.5;
+  }
+
+  .field-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    flex: 1;
+    min-width: 130px;
+  }
+  .field label {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--meta);
+  }
+  .field input, .field select {
+    font-family: var(--mono);
+    font-size: 0.88rem;
+    padding: 8px 10px;
+    border: 1px solid var(--line-strong);
+    border-radius: 3px;
+    background: var(--paper);
+    color: var(--ink);
+  }
+  .field input:focus, .field select:focus { border-color: var(--pine); }
+
+  .btn {
+    font-family: var(--serif);
+    font-size: 0.85rem;
+    padding: 9px 18px;
+    border: 1px solid var(--ink);
+    background: var(--ink);
+    color: var(--paper);
+    cursor: pointer;
+    border-radius: 3px;
+    transition: background 120ms, transform 60ms;
+  }
+  .btn:hover { background: #2b322d; }
+  .btn:active { transform: translateY(1px); }
+  .btn.secondary {
+    background: var(--paper);
+    color: var(--ink);
+  }
+  .btn.secondary:hover { background: var(--pine-soft); }
+
+  /* ---------- Readout (results) ---------- */
+  .readout {
+    margin-top: 16px;
+    border-top: 1px dashed var(--line-strong);
+    padding-top: 16px;
+  }
+  .readout.empty { display: none; }
+  .readout-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 5px 0;
+    font-size: 0.87rem;
+    border-bottom: 1px solid var(--line);
+  }
+  .readout-row:last-child { border-bottom: none; }
+  .readout-row .k { color: var(--meta); font-family: var(--mono); font-size: 0.78rem; }
+  .readout-row .v { font-family: var(--mono); text-align: right; }
+  .readout-row .v.hi { color: var(--pine); font-weight: 600; }
+
+  .error-box {
+    margin-top: 16px;
+    border: 1px solid var(--err);
+    background: var(--err-soft);
+    color: var(--err);
+    padding: 12px 14px;
+    border-radius: 3px;
+    font-size: 0.85rem;
+    font-family: var(--mono);
+    line-height: 1.5;
+  }
+
+  .loading-note {
+    margin-top: 16px;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--meta);
+  }
+
+  /* ---------- Diagram ---------- */
+  .diagram-box {
+    margin-top: 18px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background:
+      linear-gradient(var(--line) 1px, transparent 1px) 0 0 / 24px 24px,
+      linear-gradient(90deg, var(--line) 1px, transparent 1px) 0 0 / 24px 24px;
+    background-color: var(--paper-raised);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+  }
+  .diagram-box svg { display: block; max-width: 100%; height: auto; }
+  .diagram-caption {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--meta);
+    text-align: center;
+    margin-top: 8px;
+  }
+
+  /* ---------- Formulas used ---------- */
+  .formula-box {
+    margin-top: 16px;
+    border-top: 1px dashed var(--line-strong);
+    padding-top: 14px;
+  }
+  .formula-box h4 {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--meta);
+    margin: 0 0 8px;
+    font-weight: 600;
+  }
+  .formula-row {
+    font-family: var(--mono);
+    font-size: 0.83rem;
+    color: var(--ink-soft);
+    padding: 4px 0;
+    line-height: 1.55;
+  }
+
+  /* shape/solid picker grid */
+  .picker {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 8px;
+    margin-bottom: 18px;
+  }
+  .picker button {
+    font-family: var(--serif);
+    font-size: 0.83rem;
+    padding: 10px 12px;
+    border: 1px solid var(--line-strong);
+    background: var(--paper);
+    color: var(--ink-soft);
+    border-radius: 3px;
+    cursor: pointer;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .picker button svg {
+    width: 26px; height: 26px; flex-shrink: 0;
+    stroke: currentColor; fill: none; stroke-width: 1.5;
+    stroke-linecap: round; stroke-linejoin: round;
+  }
+  .picker button svg .fill { fill: currentColor; fill-opacity: 0.12; }
+  .picker button:hover { border-color: var(--pine); color: var(--ink); }
+  .picker button.sel {
+    background: var(--pine);
+    border-color: var(--pine);
+    color: var(--paper);
+    font-weight: 600;
+  }
+
+  /* ---------- Geometry workspace (embedded page) ---------- */
+  #workspaceFrameWrap,
+  #solverFrameWrap {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    overflow: hidden;
+    height: calc(100vh - 64px);
+    min-height: 520px;
+    background: var(--paper-raised);
+  }
+  #workspaceFrame,
+  #solverFrame {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+
+  /* Encyclopedia */
+  .etc-name {
+    font-size: 1.15rem;
+    margin: 0 0 4px;
+    font-weight: 600;
+    color: var(--pine);
+  }
+  .etc-formula-block {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 10px 12px;
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    margin-top: 8px;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .etc-note {
+    font-size: 0.82rem;
+    color: var(--meta);
+    margin-top: 10px;
+    line-height: 1.5;
+  }
+  .etc-tags { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+  .etc-tag {
+    font-family: var(--mono); font-size: 0.7rem;
+    padding: 3px 8px; border-radius: 10px;
+    background: var(--blue-soft); color: var(--blue);
+  }
+  .etc-tag.local { background: var(--pine-soft); color: var(--pine); }
+
+  footer.hint {
+    font-size: 0.78rem;
+    color: var(--meta);
+    margin-top: 10px;
+    line-height: 1.5;
+  }
+
+  @media (max-width: 860px) {
+    #rail {
+      position: fixed;
+      z-index: 40;
+      left: 0; top: 0; bottom: 0;
+      transform: translateX(-100%);
+      transition: transform 180ms ease;
+      background: var(--paper);
+      box-shadow: 2px 0 18px rgba(0,0,0,0.12);
+    }
+    #rail.open { transform: translateX(0); }
+    #railToggle {
+      display: flex;
+      position: fixed;
+      top: 14px; left: 14px;
+      z-index: 41;
+      width: 38px; height: 38px;
+      align-items: center; justify-content: center;
+      background: var(--ink);
+      color: var(--paper);
+      border: none; border-radius: 4px;
+      cursor: pointer;
+      font-size: 1.1rem;
+    }
+    main { padding: 74px 20px 60px; max-width: 100%; }
+    main:has(#pane-workspace.active),
+    main:has(#pane-solver.active) { padding: 60px 8px 8px; }
+    #workspaceFrameWrap,
+    #solverFrameWrap { height: calc(100vh - 76px); height: calc(100dvh - 76px); }
+    .field input, .field select { font-size: 16px; }   /* stops iOS zooming in on focus */
+  }
+</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='theme.css') }}">
+</head>
+<body>
+
+<button id="railToggle" aria-label="Toggle navigation" title="Hide / show this menu">&#9776;</button>
+
+<aside id="rail">
+  <div id="brand">
+    <svg class="mark" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M15 3 L27 25 L3 25 Z" stroke="#1f3f94" stroke-width="1.6" stroke-linejoin="round"/>
+      <circle cx="15" cy="17.5" r="1.4" fill="#c23b22"/>
+      <path d="M15 3 L15 25 M9 14 L21 14" stroke="#aab6c6" stroke-width="0.8" stroke-dasharray="1.5 2"/>
+    </svg>
+    <h1>GeoLab</h1>
+    <p>triangle centers · shapes · solids</p>
+  </div>
+  <nav id="navList">
+    <button class="nav-item active" data-pane="workspace"><span class="n">01</span>Geometry Workspace</button>
+    <button class="nav-item" data-pane="shapes"><span class="n">02</span>2D Shapes</button>
+    <button class="nav-item" data-pane="solids"><span class="n">03</span>3D Solids</button>
+    <button class="nav-item" data-pane="solver"><span class="n">04</span>Triangle Solver</button>
+    <button class="nav-item" data-pane="encyclopedia"><span class="n">05</span>Encyclopedia (ETC)</button>
+  </nav>
+  <div id="railFoot">
+    API base
+    <code id="apiBaseDisplay">same origin</code>
+  </div>
+</aside>
+
+<main>
+
+  <!-- ============ ENCYCLOPEDIA ============ -->
+  <section class="pane" id="pane-encyclopedia">
+    <div class="pane-head">
+      <p class="eyebrow">05 — live lookup, X(1) to X(84000)</p>
+      <h2>Encyclopedia of Triangle Centers</h2>
+      <p>Look up any center's name and formulas by Kimberling number — no triangle required. Merges the local verified database with a live fetch from the official ETC website.</p>
+    </div>
+    <div class="tool-group">
+      <div class="field-row" style="align-items:flex-end;">
+        <div class="field" style="max-width:200px;">
+          <label for="etcId">Kimberling number</label>
+          <input type="number" id="etcId" placeholder="1" min="1" max="84000">
+        </div>
+        <div class="field" style="min-width:240px;">
+          <label for="etcTriangle">Triangle for diagram (optional)</label>
+          <input type="text" id="etcTriangle" placeholder="(0,0),(7,0),(2,5)">
+        </div>
+        <button class="btn" id="etcBtn">Look up</button>
+      </div>
+      <div id="etcResult"></div>
+    </div>
+  </section>
+
+  <!-- ============ SHAPES ============ -->
+  <section class="pane" id="pane-shapes">
+    <div class="pane-head">
+      <p class="eyebrow">02 — plane geometry</p>
+      <h2>2D shapes</h2>
+      <p>Area, perimeter, and angles for common shapes. Pick one, fill in its measurements.</p>
+    </div>
+    <div id="shapePicker" class="picker"></div>
+    <div class="tool-group" id="shapeFormBox" style="display:none;">
+      <h3 id="shapeFormTitle"></h3>
+      <p class="desc" id="shapeFormDesc"></p>
+      <div id="shapeFields"></div>
+      <button class="btn" id="shapeSolveBtn">Calculate</button>
+      <div id="shapeResult"></div>
+    </div>
+  </section>
+
+  <!-- ============ SOLIDS ============ -->
+  <section class="pane" id="pane-solids">
+    <div class="pane-head">
+      <p class="eyebrow">03 — solid geometry</p>
+      <h2>3D solids</h2>
+      <p>Volume and surface area for common solids.</p>
+    </div>
+    <div id="solidPicker" class="picker"></div>
+    <div class="tool-group" id="solidFormBox" style="display:none;">
+      <h3 id="solidFormTitle"></h3>
+      <p class="desc" id="solidFormDesc"></p>
+      <div id="solidFields"></div>
+      <button class="btn" id="solidSolveBtn">Calculate</button>
+      <div id="solidResult"></div>
+    </div>
+  </section>
+
+  <!-- ============ TRIANGLE SOLVER ============ -->
+  <section class="pane" id="pane-solver">
+    <div class="pane-head">
+      <p class="eyebrow">04 — step-by-step solver</p>
+      <h2>Triangle solver</h2>
+      <p>Enter whatever you know about a triangle — sides, angles, radii — and get a step-by-step solution with no coordinates.</p>
+    </div>
+    <div id="solverFrameWrap">
+      <iframe id="solverFrame" title="Triangle solver" data-src="/solver"></iframe>
+    </div>
+    <footer class="hint">
+      Also available full-screen at <a href="/solver" target="_blank" rel="noopener">/solver</a>.
+    </footer>
+  </section>
+
+  <!-- ============ GEOMETRY WORKSPACE ============ -->
+  <section class="pane active" id="pane-workspace">
+    <div class="pane-head">
+      <p class="eyebrow">01 — interactive tools</p>
+      <h2>Geometry workspace</h2>
+      <p>Freehand construction with Move, Point, Segment, Line, Polygon, Circle, Select, Show/Hide Label, Show/Hide Object and Delete. Everything you draw can be saved and loaded by name.</p>
+    </div>
+    <div id="workspaceFrameWrap">
+      <iframe id="workspaceFrame" title="Geometry workspace" src="/geometry" data-src="/geometry"></iframe>
+    </div>
+    <footer class="hint">
+      Also available full-screen at <a href="/geometry" target="_blank" rel="noopener">/geometry</a>.
+    </footer>
+  </section>
+
+</main>
+
+<script>
+const API = ''; // same-origin Flask backend
+
+/* ---------------- Navigation ---------------- */
+try {
+  // Starts hidden (more room for the work area) until the person chooses otherwise.
+  if (localStorage.getItem('geolabRailHidden') !== '0') document.body.classList.add('rail-hidden');
+} catch (e) { /* ignore */ }
+const navItems = document.querySelectorAll('.nav-item');
+const panes = document.querySelectorAll('.pane');
+navItems.forEach(btn => {
+  btn.addEventListener('click', () => {
+    navItems.forEach(b => b.classList.remove('active'));
+    panes.forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('pane-' + btn.dataset.pane).classList.add('active');
+    document.getElementById('rail').classList.remove('open');
+
+    // The solver and workspace iframes load lazily, the first time their tab
+    // is opened, so they cost nothing until the person actually uses them.
+    const frame = document.getElementById(btn.dataset.pane + 'Frame');
+    if (frame && !frame.getAttribute('src')) frame.setAttribute('src', frame.dataset.src);
+  });
+});
+document.getElementById('railToggle').addEventListener('click', () => {
+  if (window.matchMedia('(max-width: 860px)').matches) {
+    document.getElementById('rail').classList.toggle('open');
+    return;
+  }
+  // Desktop: hide / show the whole left menu (choice is remembered).
+  const hidden = document.body.classList.toggle('rail-hidden');
+  try { localStorage.setItem('geolabRailHidden', hidden ? '1' : '0'); } catch (e) { /* ignore */ }
+});
+
+/* ---------------- Helpers ---------------- */
+function fmt(n) {
+  if (n === null || n === undefined) return '—';
+  if (typeof n === 'number') return Number.isInteger(n) ? String(n) : n.toFixed(4).replace(/\.?0+$/, '');
+  return String(n);
+}
+function el(tag, attrs = {}, children = []) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'text') node.textContent = v;
+    else if (k === 'html') node.innerHTML = v;
+    else node.setAttribute(k, v);
+  }
+  (Array.isArray(children) ? children : [children]).forEach(c => c && node.appendChild(c));
+  return node;
+}
+function readoutRow(k, v, hi = false) {
+  return el('div', { class: 'readout-row' }, [
+    el('span', { class: 'k', text: k }),
+    el('span', { class: 'v' + (hi ? ' hi' : ''), text: fmt(v) }),
+  ]);
+}
+function errorBox(msg) {
+  return el('div', { class: 'error-box', text: msg });
+}
+async function apiGet(path) {
+  const res = await fetch(API + path);
+  let data;
+  try { data = await res.json(); }
+  catch { throw new Error('Could not reach the backend at ' + path + '. Is app.py running?'); }
+  return { ok: res.ok, data };
+}
+
+/* ==================================================================
+   DIAGRAMS — proportional SVG outlines for shapes, solids, triangles
+   ================================================================== */
+const DGM = {
+  W: 320, H: 240, pad: 30,
+  stroke: '#131b2e', fill: 'rgba(31, 63, 148, 0.07)', accent: '#c23b22', dim: '#5f6d86',
+};
+
+function svgWrap(inner, viewW = DGM.W, viewH = DGM.H) {
+  return `<svg viewBox="0 0 ${viewW} ${viewH}" width="${viewW}" height="${viewH}" xmlns="http://www.w3.org/2000/svg">${inner}</svg>`;
+}
+function line(x1, y1, x2, y2, extra = '') {
+  return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${DGM.stroke}" stroke-width="1.6" ${extra}/>`;
+}
+function poly(pts, extra = '') {
+  return `<polygon points="${pts.map(p => p.join(',')).join(' ')}" fill="${DGM.fill}" stroke="${DGM.stroke}" stroke-width="1.6" ${extra}/>`;
+}
+function circ(cx, cy, r, extra = '') {
+  return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${DGM.stroke}" stroke-width="1.6" ${extra}/>`;
+}
+function dot(cx, cy, r = 3, color = DGM.stroke) {
+  return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${color}"/>`;
+}
+
+/* ---------- Labels ----------------------------------------------------
+   Every diagram labels each of its components with the value the person
+   typed (e.g. "r = 4"). Text sits on a small paper-coloured pill so it
+   stays readable on top of the grid and the shape's outline.            */
+const LBL_FONT = "'Cambria Math','STIX Two Math','Noto Sans Math','Segoe UI Symbol','Times New Roman',serif";
+
+// Format a number for a label: up to 4 decimals, no trailing zeros.
+function lv(x) {
+  const n = Number(x);
+  if (!isFinite(n)) return '?';
+  return String(Math.round(n * 10000) / 10000);
+}
+// Same, but for an input string (may be blank).
+function lvIn(x) {
+  return (x === undefined || x === null || String(x).trim() === '') ? '?' : lv(x);
+}
+
+function escXml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// A text label centred on (x, y), on a semi-opaque pill.
+function dlabel(x, y, text, opts = {}) {
+  const size = opts.size || 12;
+  const color = opts.color || DGM.accent;
+  const anchor = opts.anchor || 'middle';
+  const w = String(text).length * size * 0.56 + 10;
+  const h = size + 6;
+  let rx = x - w / 2;
+  if (anchor === 'start') rx = x - 4;
+  if (anchor === 'end') rx = x - w + 4;
+  return `<rect x="${rx}" y="${y - h / 2 - 1}" width="${w}" height="${h}" rx="3" fill="#ffffff" fill-opacity="0.92"/>` +
+    `<text x="${x}" y="${y + size * 0.36}" font-size="${size}" fill="${color}" text-anchor="${anchor}" font-family="${LBL_FONT}">${escXml(text)}</text>`;
+}
+
+// Label placed beside the midpoint of segment P->Q, pushed `off` px to one
+// side (perpendicular), so it never sits on top of the line itself.
+function sideLabel(P, Q, text, off = 14, opts = {}) {
+  const mx = (P[0] + Q[0]) / 2, my = (P[1] + Q[1]) / 2;
+  const dx = Q[0] - P[0], dy = Q[1] - P[1];
+  const len = Math.hypot(dx, dy) || 1;
+  const nx = -dy / len, ny = dx / len;
+  return dlabel(mx + nx * off, my + ny * off, text, opts);
+}
+
+// Push a label OUTWARD from a shape's centre, so it lands outside the outline.
+function outsideLabel(P, Q, centre, text, off = 14, opts = {}) {
+  const mx = (P[0] + Q[0]) / 2, my = (P[1] + Q[1]) / 2;
+  const dx = Q[0] - P[0], dy = Q[1] - P[1];
+  const len = Math.hypot(dx, dy) || 1;
+  let nx = -dy / len, ny = dx / len;
+  if ((mx + nx - centre[0]) * (mx - centre[0]) + (my + ny - centre[1]) * (my - centre[1]) < 0) { nx = -nx; ny = -ny; }
+  return dlabel(mx + nx * off, my + ny * off, text, opts);
+}
+
+function centroidOf(pts) {
+  return [pts.reduce((s, p) => s + p[0], 0) / pts.length, pts.reduce((s, p) => s + p[1], 0) / pts.length];
+}
+
+// Little arrowheads for dimension lines.
+function arrowHead(tip, from, size = 6) {
+  const dx = tip[0] - from[0], dy = tip[1] - from[1];
+  const len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len, uy = dy / len;
+  const bx = tip[0] - ux * size, by = tip[1] - uy * size;
+  const px = -uy * size * 0.5, py = ux * size * 0.5;
+  return `<polygon points="${tip[0]},${tip[1]} ${bx + px},${by + py} ${bx - px},${by - py}" fill="${DGM.dim}"/>`;
+}
+// A thin dimension line P<->Q with arrowheads at both ends.
+function dimLine(P, Q) {
+  return `<line x1="${P[0]}" y1="${P[1]}" x2="${Q[0]}" y2="${Q[1]}" stroke="${DGM.dim}" stroke-width="1"/>` +
+    arrowHead(P, Q) + arrowHead(Q, P);
+}
+// Right-angle marker at corner `V`, between directions toward P and Q.
+function rightAngleMark(V, P, Q, size = 9) {
+  const u = [P[0] - V[0], P[1] - V[1]], w = [Q[0] - V[0], Q[1] - V[1]];
+  const lu = Math.hypot(u[0], u[1]) || 1, lw = Math.hypot(w[0], w[1]) || 1;
+  const a = [V[0] + u[0] / lu * size, V[1] + u[1] / lu * size];
+  const b = [V[0] + w[0] / lw * size, V[1] + w[1] / lw * size];
+  const c = [a[0] + w[0] / lw * size, a[1] + w[1] / lw * size];
+  return `<polyline points="${a.join(',')} ${c.join(',')} ${b.join(',')}" fill="none" stroke="${DGM.dim}" stroke-width="1"/>`;
+}
+// Angle arc at V from direction toward P to direction toward Q, radius r.
+function angleArc(V, P, Q, r = 18) {
+  const a1 = Math.atan2(P[1] - V[1], P[0] - V[0]);
+  const a2 = Math.atan2(Q[1] - V[1], Q[0] - V[0]);
+  let d = a2 - a1;
+  while (d > Math.PI) d -= 2 * Math.PI;
+  while (d < -Math.PI) d += 2 * Math.PI;
+  const x1 = V[0] + r * Math.cos(a1), y1 = V[1] + r * Math.sin(a1);
+  const x2 = V[0] + r * Math.cos(a1 + d), y2 = V[1] + r * Math.sin(a1 + d);
+  const sweep = d > 0 ? 1 : 0;
+  const mid = a1 + d / 2;
+  return { path: `<path d="M${x1},${y1} A${r},${r} 0 0 ${sweep} ${x2},${y2}" fill="none" stroke="${DGM.accent}" stroke-width="1.2"/>`,
+           lx: V[0] + (r + 12) * Math.cos(mid), ly: V[1] + (r + 12) * Math.sin(mid) };
+}
+
+// Fit an arbitrary set of points into the drawing area, preserving aspect ratio, y-flipped.
+function fitPoints(pts) {
+  const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+  const w = Math.max(maxX - minX, 1e-6), h = Math.max(maxY - minY, 1e-6);
+  const availW = DGM.W - 2 * DGM.pad, availH = DGM.H - 2 * DGM.pad;
+  const scale = Math.min(availW / w, availH / h);
+  const offX = DGM.pad + (availW - w * scale) / 2;
+  const offY = DGM.pad + (availH - h * scale) / 2;
+  return pts.map(([x, y]) => [
+    offX + (x - minX) * scale,
+    DGM.H - (offY + (y - minY) * scale), // flip y so shapes read right-side-up
+  ]);
+}
+
+function diagramTriangleFromSides(a, b, c) {
+  // Place A at origin, B along x-axis at distance c (AB=c), solve C via law of cosines.
+  if (!(a > 0 && b > 0 && c > 0) || !(a + b > c && b + c > a && c + a > b)) return null;
+  const Ax = 0, Ay = 0, Bx = c, By = 0;
+  const cosA = (b * b + c * c - a * a) / (2 * b * c);
+  const Cx = b * Math.max(-1, Math.min(1, cosA));
+  const Cy = b * Math.sqrt(Math.max(0, 1 - cosA * cosA));
+  const pts = fitPoints([[Ax, Ay], [Bx, By], [Cx, Cy]]);
+  const [A, B, C] = pts;
+  let svg = poly([A, B, C]);
+  svg += dot(...A) + dot(...B) + dot(...C);
+  const ctr = centroidOf([A, B, C]);
+
+  // Vertex letters, pushed outward from the centre so they never overlap.
+  const vlabel = (P, letter) => {
+    const dx = P[0] - ctr[0], dy = P[1] - ctr[1], l = Math.hypot(dx, dy) || 1;
+    return dlabel(P[0] + dx / l * 14, P[1] + dy / l * 14, letter, { color: DGM.stroke, size: 13 });
+  };
+  svg += vlabel(A, 'A') + vlabel(B, 'B') + vlabel(C, 'C');
+
+  // Sides: a = BC, b = CA, c = AB (opposite the vertex of the same letter).
+  svg += outsideLabel(B, C, ctr, `a = ${lv(a)}`, 16);
+  svg += outsideLabel(C, A, ctr, `b = ${lv(b)}`, 16);
+  svg += outsideLabel(A, B, ctr, `c = ${lv(c)}`, 16);
+
+  // Interior angles (law of cosines), drawn as arcs just inside each vertex.
+  const angA = Math.acos(Math.max(-1, Math.min(1, (b * b + c * c - a * a) / (2 * b * c)))) * 180 / Math.PI;
+  const angB = Math.acos(Math.max(-1, Math.min(1, (a * a + c * c - b * b) / (2 * a * c)))) * 180 / Math.PI;
+  const angC = 180 - angA - angB;
+  const arcAt = (V, P, Q, text) => {
+    const arc = angleArc(V, P, Q, 20);
+    return arc.path + dlabel(arc.lx, arc.ly, text, { size: 11 });
+  };
+  svg += arcAt(A, B, C, `\u03b1 = ${lv(angA)}\u00b0`);
+  svg += arcAt(B, C, A, `\u03b2 = ${lv(angB)}\u00b0`);
+  svg += arcAt(C, A, B, `\u03b3 = ${lv(angC)}\u00b0`);
+  return { svg: svgWrap(svg), pts: { A, B, C } };
+}
+
+const SHAPE_DIAGRAMS = {
+  circle: (inputs, result) => {
+    // Radius comes from whichever of radius / diameter / circumference was
+    // entered; the result always carries the resolved radius-derived values.
+    const rVal = (result && result.inputs && result.inputs.radius !== undefined) ? result.inputs.radius
+      : (result && result.diameter !== undefined ? result.diameter / 2 : inputs.radius);
+    const r = 70;
+    const cx = DGM.W / 2, cy = DGM.H / 2;
+    let svg = circ(cx, cy, r, `fill="${DGM.fill}"`);
+    svg += line(cx, cy, cx + r, cy, `stroke="${DGM.accent}" stroke-width="2"`);
+    svg += dot(cx, cy) + dot(cx + r, cy, 3, DGM.accent);
+    svg += dlabel(cx + r / 2, cy - 13, `r = ${lvIn(rVal)}`);
+    svg += dlabel(cx - 12, cy + 15, 'O', { color: DGM.stroke });
+    if (result && result.diameter !== undefined) {
+      svg += line(cx - r, cy + r + 14, cx + r, cy + r + 14, `stroke="${DGM.dim}" stroke-width="1"`);
+      svg += dlabel(cx, cy + r + 14, `d = ${lv(result.diameter)}`, { color: DGM.dim });
+    }
+    return svgWrap(svg);
+  },
+  ellipse: (inputs) => {
+    const rx = 90, ry = 55;
+    const cx = DGM.W / 2, cy = DGM.H / 2;
+    let svg = `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${DGM.fill}" stroke="${DGM.stroke}" stroke-width="1.6"/>`;
+    svg += line(cx, cy, cx + rx, cy, `stroke="${DGM.accent}" stroke-width="2"`);
+    svg += line(cx, cy, cx, cy - ry, `stroke="${DGM.accent}" stroke-width="2"`);
+    svg += dot(cx, cy) + dot(cx + rx, cy, 3, DGM.accent) + dot(cx, cy - ry, 3, DGM.accent);
+    svg += dlabel(cx + rx / 2, cy + 14, `a = ${lvIn(inputs.semi_major)}`);
+    svg += dlabel(cx - 24, cy - ry / 2, `b = ${lvIn(inputs.semi_minor)}`);
+    svg += dlabel(cx - 11, cy + 14, 'O', { color: DGM.stroke });
+    return svgWrap(svg);
+  },
+  circle_sector: (inputs, result) => {
+    const r = 80, ang = Math.min(359, Math.max(1, parseFloat(inputs.angle_degrees) || 90));
+    const cx = DGM.W / 2, cy = DGM.H / 2 + 20;
+    const a1 = -90 * Math.PI / 180, a2 = (-90 + ang) * Math.PI / 180;
+    const x1 = cx + r * Math.cos(a1), y1 = cy + r * Math.sin(a1);
+    const x2 = cx + r * Math.cos(a2), y2 = cy + r * Math.sin(a2);
+    const large = ang > 180 ? 1 : 0;
+    let svg = `<path d="M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${large} 1 ${x2},${y2} Z" fill="${DGM.fill}" stroke="${DGM.stroke}" stroke-width="1.6"/>`;
+    svg += dot(cx, cy);
+    // Radius label on the first bounding radius.
+    svg += dlabel((cx + x1) / 2 - 22, (cy + y1) / 2, `r = ${lvIn(inputs.radius)}`);
+    // Central angle arc + label (in degrees).
+    const arc = angleArc([cx, cy], [x1, y1], [x2, y2], 22);
+    svg += arc.path + dlabel(arc.lx, arc.ly, `\u03b8 = ${lvIn(inputs.angle_degrees)}\u00b0`);
+    // Arc length, outside the arc.
+    const am = (a1 + a2) / 2;
+    if (result && result.arc_length !== undefined) {
+      svg += dlabel(cx + (r + 22) * Math.cos(am), cy + (r + 22) * Math.sin(am), `arc = ${lv(result.arc_length)}`, { color: DGM.dim });
+    }
+    return svgWrap(svg);
+  },
+  circle_segment: (inputs, result) => {
+    const r = 80, ang = Math.min(359, Math.max(1, parseFloat(inputs.angle_degrees) || 90));
+    const cx = DGM.W / 2, cy = DGM.H / 2;
+    const a1 = -90 * Math.PI / 180, a2 = (-90 + ang) * Math.PI / 180;
+    const x1 = cx + r * Math.cos(a1), y1 = cy + r * Math.sin(a1);
+    const x2 = cx + r * Math.cos(a2), y2 = cy + r * Math.sin(a2);
+    const large = ang > 180 ? 1 : 0;
+    let svg = `<path d="M${x1},${y1} A${r},${r} 0 ${large} 1 ${x2},${y2} Z" fill="${DGM.fill}" stroke="${DGM.stroke}" stroke-width="1.6"/>`;
+    // Faint construction radii to the centre, so the central angle is visible.
+    svg += `<line x1="${cx}" y1="${cy}" x2="${x1}" y2="${y1}" stroke="${DGM.dim}" stroke-width="1" stroke-dasharray="3 3"/>`;
+    svg += `<line x1="${cx}" y1="${cy}" x2="${x2}" y2="${y2}" stroke="${DGM.dim}" stroke-width="1" stroke-dasharray="3 3"/>`;
+    svg += dot(cx, cy);
+    svg += dlabel((cx + x1) / 2 - 22, (cy + y1) / 2, `r = ${lvIn(inputs.radius)}`);
+    const arc = angleArc([cx, cy], [x1, y1], [x2, y2], 22);
+    svg += arc.path + dlabel(arc.lx, arc.ly, `\u03b8 = ${lvIn(inputs.angle_degrees)}\u00b0`);
+    if (result && result.chord_length !== undefined) {
+      svg += dlabel((x1 + x2) / 2, (y1 + y2) / 2 + 16, `chord = ${lv(result.chord_length)}`, { color: DGM.dim });
+    }
+    return svgWrap(svg);
+  },
+  triangle: (inputs, result) => {
+    const a = parseFloat(inputs.a), b = parseFloat(inputs.b), c = parseFloat(inputs.c);
+    const d = diagramTriangleFromSides(a, b, c);
+    return d ? d.svg : null;
+  },
+  rectangle: (inputs) => {
+    const L = parseFloat(inputs.length) || 1, W = parseFloat(inputs.width) || 1;
+    const pts = fitPoints([[0, 0], [L, 0], [L, W], [0, W]]);
+    // pts: [0]=bottom-left, [1]=bottom-right, [2]=top-right, [3]=top-left (screen coords)
+    let svg = poly(pts);
+    svg += rightAngleMark(pts[0], pts[1], pts[3]);
+    svg += dlabel((pts[0][0] + pts[1][0]) / 2, pts[0][1] + 16, `length = ${lvIn(inputs.length)}`);
+    svg += dlabel(pts[1][0] + 8, (pts[1][1] + pts[2][1]) / 2, `width = ${lvIn(inputs.width)}`, { anchor: 'start' });
+    return svgWrap(svg);
+  },
+  square: (inputs) => {
+    const s = parseFloat(inputs.side) || 1;
+    const pts = fitPoints([[0, 0], [s, 0], [s, s], [0, s]]);
+    let svg = poly(pts);
+    svg += rightAngleMark(pts[0], pts[1], pts[3]);
+    svg += dlabel((pts[0][0] + pts[1][0]) / 2, pts[0][1] + 16, `side = ${lvIn(inputs.side)}`);
+    svg += dlabel(pts[1][0] + 8, (pts[1][1] + pts[2][1]) / 2, `side = ${lvIn(inputs.side)}`, { anchor: 'start' });
+    return svgWrap(svg);
+  },
+  parallelogram: (inputs) => {
+    const base = parseFloat(inputs.base) || 1, side = parseFloat(inputs.side) || 1, height = parseFloat(inputs.height) || 1;
+    const shearX = Math.sqrt(Math.max(0, side * side - height * height));
+    const pts = fitPoints([[0, 0], [base, 0], [base + shearX, height], [shearX, height]]);
+    // pts: [0]=bottom-left, [1]=bottom-right, [2]=top-right, [3]=top-left
+    let svg = poly(pts);
+    // Dashed height from top-left corner straight down to the base line.
+    const foot = [pts[3][0], pts[0][1]];
+    svg += `<line x1="${pts[3][0]}" y1="${pts[3][1]}" x2="${foot[0]}" y2="${foot[1]}" stroke="${DGM.accent}" stroke-width="1.2" stroke-dasharray="4 3"/>`;
+    svg += rightAngleMark(foot, pts[1], pts[3], 8);
+    svg += dlabel((pts[0][0] + pts[1][0]) / 2, pts[0][1] + 16, `base = ${lvIn(inputs.base)}`);
+    svg += outsideLabel(pts[1], pts[2], centroidOf(pts), `side = ${lvIn(inputs.side)}`, 18);
+    svg += dlabel(foot[0] + 6, (foot[1] + pts[3][1]) / 2, `h = ${lvIn(inputs.height)}`, { anchor: 'start' });
+    return svgWrap(svg);
+  },
+  rhombus: (inputs, result) => {
+    const d1 = parseFloat(inputs.d1) || 1, d2 = parseFloat(inputs.d2) || 1;
+    const pts = fitPoints([[0, d2 / 2], [d1 / 2, 0], [d1, d2 / 2], [d1 / 2, d2]]);
+    // pts: [0]=left, [1]=bottom, [2]=right, [3]=top
+    let svg = poly(pts);
+    // Both diagonals, drawn dashed, meeting at the centre.
+    svg += `<line x1="${pts[0][0]}" y1="${pts[0][1]}" x2="${pts[2][0]}" y2="${pts[2][1]}" stroke="${DGM.accent}" stroke-width="1.2" stroke-dasharray="4 3"/>`;
+    svg += `<line x1="${pts[1][0]}" y1="${pts[1][1]}" x2="${pts[3][0]}" y2="${pts[3][1]}" stroke="${DGM.accent}" stroke-width="1.2" stroke-dasharray="4 3"/>`;
+    const ctr = centroidOf(pts);
+    svg += rightAngleMark(ctr, pts[2], pts[3], 8);
+    svg += dlabel(ctr[0] + 32, ctr[1] + 13, `d\u2081 = ${lvIn(inputs.d1)}`);
+    svg += dlabel(ctr[0] - 4, ctr[1] - 26, `d\u2082 = ${lvIn(inputs.d2)}`);
+    if (result && result.side !== undefined) {
+      svg += outsideLabel(pts[1], pts[2], ctr, `side = ${lv(result.side)}`, 16, { color: DGM.dim });
+    }
+    return svgWrap(svg);
+  },
+  trapezoid: (inputs) => {
+    const b1 = parseFloat(inputs.base1) || 1, b2 = parseFloat(inputs.base2) || 1, h = parseFloat(inputs.height) || 1;
+    const inset = (b1 - b2) / 2;
+    const pts = fitPoints([[0, 0], [b1, 0], [b1 - inset, h], [inset, h]]);
+    // pts: [0]=bottom-left, [1]=bottom-right, [2]=top-right, [3]=top-left
+    let svg = poly(pts);
+    const foot = [pts[3][0], pts[0][1]];
+    svg += `<line x1="${pts[3][0]}" y1="${pts[3][1]}" x2="${foot[0]}" y2="${foot[1]}" stroke="${DGM.accent}" stroke-width="1.2" stroke-dasharray="4 3"/>`;
+    svg += rightAngleMark(foot, pts[1], pts[3], 8);
+    svg += dlabel((pts[0][0] + pts[1][0]) / 2, pts[0][1] + 16, `base\u2081 = ${lvIn(inputs.base1)}`);
+    svg += dlabel((pts[3][0] + pts[2][0]) / 2, pts[3][1] - 14, `base\u2082 = ${lvIn(inputs.base2)}`);
+    svg += dlabel(foot[0] + 6, (foot[1] + pts[3][1]) / 2, `h = ${lvIn(inputs.height)}`, { anchor: 'start' });
+    // Legs are only labelled when the person supplied them.
+    const ctr = centroidOf(pts);
+    if (String(inputs.side1 || '').trim() !== '') svg += outsideLabel(pts[0], pts[3], ctr, `${lvIn(inputs.side1)}`, 14, { color: DGM.dim });
+    if (String(inputs.side2 || '').trim() !== '') svg += outsideLabel(pts[1], pts[2], ctr, `${lvIn(inputs.side2)}`, 14, { color: DGM.dim });
+    return svgWrap(svg);
+  },
+  regular_polygon: (inputs, result) => {
+    const n = Math.max(3, parseInt(inputs.num_sides) || 5);
+    const r = 80, cx = DGM.W / 2, cy = DGM.H / 2;
+    const pts = [];
+    for (let i = 0; i < n; i++) {
+      const ang = -Math.PI / 2 + (2 * Math.PI * i) / n;
+      pts.push([cx + r * Math.cos(ang), cy + r * Math.sin(ang)]);
+    }
+    let svg = poly(pts);
+    // Label one side (the top-right edge) with its length, and show the
+    // number of sides and the circumradius from the centre to a vertex.
+    svg += outsideLabel(pts[0], pts[1], [cx, cy], `s = ${lvIn(inputs.side_length)}`, 16);
+    svg += `<line x1="${cx}" y1="${cy}" x2="${pts[0][0]}" y2="${pts[0][1]}" stroke="${DGM.accent}" stroke-width="1.2" stroke-dasharray="4 3"/>`;
+    svg += dot(cx, cy);
+    if (result && result.circumradius !== undefined) {
+      svg += dlabel(cx + 4, cy - 26, `R = ${lv(result.circumradius)}`, { anchor: 'start', color: DGM.dim });
+    }
+    svg += dlabel(cx, cy + 18, `n = ${n}`, { color: DGM.dim });
+    return svgWrap(svg);
+  },
+  polygon: (inputs, result) => {
+    const raw = result && result.inputs && result.inputs.points;
+    if (!raw || raw.length < 3) return null;
+    const pts = fitPoints(raw);
+    let svg = poly(pts);
+    const ctr = centroidOf(pts);
+    // Vertex letters A, B, C, ... pushed outward from the centre.
+    pts.forEach((p, i) => {
+      const dx = p[0] - ctr[0], dy = p[1] - ctr[1], l = Math.hypot(dx, dy) || 1;
+      svg += dot(p[0], p[1]);
+      svg += dlabel(p[0] + dx / l * 13, p[1] + dy / l * 13, String.fromCharCode(65 + (i % 26)), { color: DGM.stroke });
+    });
+    // Side lengths from the input coordinates.
+    for (let i = 0; i < raw.length; i++) {
+      const j = (i + 1) % raw.length;
+      const len = Math.hypot(raw[j][0] - raw[i][0], raw[j][1] - raw[i][1]);
+      svg += outsideLabel(pts[i], pts[j], ctr, lv(len), 12, { size: 11 });
+    }
+    return svgWrap(svg);
+  },
+  polygon_from_sides_angles: (inputs, result) => {
+    const raw = result && result.reconstructed_vertices;
+    if (!raw || raw.length < 3) return null;
+    const pts = fitPoints(raw);
+    let svg = poly(pts);
+    const ctr = centroidOf(pts);
+    const sides = (result.inputs && result.inputs.sides) || [];
+    const angs = (result.inputs && result.inputs.angles_degrees) || [];
+    pts.forEach((p, i) => {
+      const dx = p[0] - ctr[0], dy = p[1] - ctr[1], l = Math.hypot(dx, dy) || 1;
+      svg += dot(p[0], p[1]);
+      svg += dlabel(p[0] + dx / l * 13, p[1] + dy / l * 13, String.fromCharCode(65 + (i % 26)), { color: DGM.stroke });
+    });
+    for (let i = 0; i < pts.length; i++) {
+      const j = (i + 1) % pts.length;
+      if (sides[i] !== undefined) svg += outsideLabel(pts[i], pts[j], ctr, lv(sides[i]), 12, { size: 11 });
+    }
+    // The interior angle after side i sits at the NEXT vertex.
+    for (let i = 0; i < pts.length; i++) {
+      const v = (i + 1) % pts.length;
+      if (angs[i] === undefined) continue;
+      const p = pts[v];
+      const dx = ctr[0] - p[0], dy = ctr[1] - p[1], l = Math.hypot(dx, dy) || 1;
+      svg += dlabel(p[0] + dx / l * 22, p[1] + dy / l * 22, `${lv(angs[i])}\u00b0`, { size: 10, color: DGM.dim });
+    }
+    return svgWrap(svg);
+  },
+  cyclic_polygon: (inputs, result) => {
+    const R = result && result.circumradius;
+    const angles = result && result.central_angles_degrees;
+    if (!R || !angles) return null;
+    const cx = 0, cy = 0;
+    let theta = -90;
+    const pts = [];
+    for (const a of angles) {
+      pts.push([cx + R * Math.cos(theta * Math.PI / 180), cy + R * Math.sin(theta * Math.PI / 180)]);
+      theta += a;
+    }
+    const fitted = fitPoints(pts);
+    const centre = fitPoints(pts.concat([[0, 0]]))[pts.length]; // where the circumcentre lands after fitting
+    let svg = poly(fitted);
+    const sides = (result.inputs && result.inputs.sides) || [];
+    fitted.forEach((p, i) => {
+      const dx = p[0] - centre[0], dy = p[1] - centre[1], l = Math.hypot(dx, dy) || 1;
+      svg += dot(p[0], p[1]);
+      svg += dlabel(p[0] + dx / l * 13, p[1] + dy / l * 13, String.fromCharCode(65 + (i % 26)), { color: DGM.stroke });
+    });
+    for (let i = 0; i < fitted.length; i++) {
+      const j = (i + 1) % fitted.length;
+      if (sides[i] !== undefined) svg += outsideLabel(fitted[i], fitted[j], centre, lv(sides[i]), 12, { size: 11 });
+    }
+    svg += dot(centre[0], centre[1]);
+    svg += `<line x1="${centre[0]}" y1="${centre[1]}" x2="${fitted[0][0]}" y2="${fitted[0][1]}" stroke="${DGM.accent}" stroke-width="1.2" stroke-dasharray="4 3"/>`;
+    svg += dlabel((centre[0] + fitted[0][0]) / 2 + 20, (centre[1] + fitted[0][1]) / 2, `R = ${lv(R)}`, { color: DGM.dim });
+    return svgWrap(svg);
+  },
+};
+
+const SOLID_DIAGRAMS = {
+  // Simple pseudo-3D (cabinet projection) sketches -- outline only, but every
+  // dimension is labelled with the value the person entered.
+  sphere: (inputs, result) => {
+    const cx = DGM.W / 2, cy = DGM.H / 2, r = 75;
+    let svg = circ(cx, cy, r);
+    svg += `<ellipse cx="${cx}" cy="${cy}" rx="${r}" ry="${r * 0.28}" fill="none" stroke="${DGM.dim}" stroke-width="1" stroke-dasharray="3 3"/>`;
+    svg += line(cx, cy, cx + r, cy, `stroke="${DGM.accent}" stroke-width="2"`);
+    svg += dot(cx, cy) + dot(cx + r, cy, 3, DGM.accent);
+    svg += dlabel(cx + r / 2, cy - 13, `r = ${lvIn(inputs.radius)}`);
+    svg += dlabel(cx - 12, cy + 15, 'O', { color: DGM.stroke });
+    return svgWrap(svg);
+  },
+  cube: (inputs) => cuboidSVG(70, 70, 70, {
+    l: `side = ${lvIn(inputs.side)}`, w: `side = ${lvIn(inputs.side)}`, h: `side = ${lvIn(inputs.side)}`,
+  }),
+  cuboid: (inputs) => {
+    const l = parseFloat(inputs.length) || 1, w = parseFloat(inputs.width) || 1, h = parseFloat(inputs.height) || 1;
+    const scale = 90 / Math.max(l, w, h);
+    return cuboidSVG(l * scale, w * scale, h * scale, {
+      l: `length = ${lvIn(inputs.length)}`, w: `width = ${lvIn(inputs.width)}`, h: `height = ${lvIn(inputs.height)}`,
+    });
+  },
+  cylinder: (inputs) => {
+    const r = parseFloat(inputs.radius) || 1, h = parseFloat(inputs.height) || 1;
+    const scale = 90 / Math.max(r * 2, h);
+    return cylinderSVG(r * scale, h * scale, {
+      r: `r = ${lvIn(inputs.radius)}`, h: `h = ${lvIn(inputs.height)}`,
+    });
+  },
+  cone: (inputs, result) => {
+    const r = parseFloat(inputs.radius) || 1, h = parseFloat(inputs.height) || 1;
+    const scale = 90 / Math.max(r * 2, h);
+    return coneSVG(r * scale, h * scale, {
+      r: `r = ${lvIn(inputs.radius)}`, h: `h = ${lvIn(inputs.height)}`,
+      // Slant height is derived: l = \u221a(r\u00b2 + h\u00b2).
+      s: `l = ${lv(Math.hypot(r, h))}`,
+    });
+  },
+  square_pyramid: (inputs) => {
+    const s = parseFloat(inputs.base_side) || 1, h = parseFloat(inputs.height) || 1;
+    const scale = 90 / Math.max(s, h);
+    return pyramidSVG(s * scale, h * scale, {
+      s: `base = ${lvIn(inputs.base_side)}`, h: `h = ${lvIn(inputs.height)}`,
+    });
+  },
+};
+
+// Extra solids added later; kept as separate assignments so the table above stays untouched.
+SOLID_DIAGRAMS.hemisphere = (inputs) => {
+  const cx = DGM.W / 2, cy = DGM.H / 2 + 25, r = 80, ry = r * 0.28;
+  let svg = `<path d="M${cx - r},${cy} A${r},${r} 0 0 1 ${cx + r},${cy} Z" fill="${DGM.fill}" stroke="${DGM.stroke}" stroke-width="1.6"/>`;
+  svg += `<ellipse cx="${cx}" cy="${cy}" rx="${r}" ry="${ry}" fill="${DGM.fill}" stroke="${DGM.stroke}" stroke-width="1.6"/>`;
+  svg += line(cx, cy, cx + r, cy, `stroke="${DGM.accent}" stroke-width="2"`);
+  svg += dot(cx, cy) + dot(cx + r, cy, 3, DGM.accent);
+  svg += dlabel(cx + r / 2, cy - 13, `r = ${lvIn(inputs.radius)}`);
+  return svgWrap(svg);
+};
+SOLID_DIAGRAMS.truncated_cone = (inputs) => {
+  const r1 = parseFloat(inputs.bottom_radius) || 1, r2 = parseFloat(inputs.top_radius) || 1, h = parseFloat(inputs.height) || 1;
+  const scale = 90 / Math.max(r1 * 2, r2 * 2, h);
+  const R1 = r1 * scale, R2 = r2 * scale, H = h * scale;
+  const cx = DGM.W / 2, topY = DGM.H / 2 - H / 2, botY = DGM.H / 2 + H / 2;
+  const ry1 = R1 * 0.32, ry2 = R2 * 0.32;
+  let svg = `<path d="M${cx - R1},${botY} A${R1},${ry1} 0 0 0 ${cx + R1},${botY} L${cx + R2},${topY} A${R2},${ry2} 0 0 0 ${cx - R2},${topY} Z" fill="${DGM.fill}" stroke="${DGM.stroke}" stroke-width="1.6"/>`;
+  svg += `<ellipse cx="${cx}" cy="${topY}" rx="${R2}" ry="${ry2}" fill="${DGM.fill}" stroke="${DGM.stroke}" stroke-width="1.6"/>`;
+  svg += `<line x1="${cx}" y1="${topY}" x2="${cx}" y2="${botY}" stroke="${DGM.accent}" stroke-width="1.2" stroke-dasharray="4 3"/>`;
+  svg += line(cx, topY, cx + R2, topY, `stroke="${DGM.accent}" stroke-width="2"`);
+  svg += line(cx, botY, cx + R1, botY, `stroke="${DGM.accent}" stroke-width="2"`);
+  svg += dot(cx, topY) + dot(cx, botY);
+  svg += dlabel(cx + R2 / 2, topY - 12, `r\u2082 = ${lvIn(inputs.top_radius)}`);
+  svg += dlabel(cx + R1 / 2, botY + 16, `r\u2081 = ${lvIn(inputs.bottom_radius)}`);
+  svg += dlabel(cx - 8, (topY + botY) / 2, `h = ${lvIn(inputs.height)}`, { anchor: 'end' });
+  return svgWrap(svg);
+};
+SOLID_DIAGRAMS.torus = (inputs) => {
+  const cx = DGM.W / 2, cy = DGM.H / 2, A = 100, B = 42, ry = 54;
+  const tubeMid = (A + B) / 2;
+  let svg = `<ellipse cx="${cx}" cy="${cy}" rx="${A}" ry="${ry}" fill="${DGM.fill}" stroke="${DGM.stroke}" stroke-width="1.6"/>`;
+  svg += `<ellipse cx="${cx}" cy="${cy}" rx="${B}" ry="${ry * B / A}" fill="#ffffff" stroke="${DGM.stroke}" stroke-width="1.6"/>`;
+  svg += line(cx, cy, cx + tubeMid, cy, `stroke="${DGM.accent}" stroke-width="2"`);
+  svg += dot(cx, cy) + dot(cx + tubeMid, cy, 3, DGM.accent);
+  svg += dlabel(cx + tubeMid / 2, cy - 13, `R = ${lvIn(inputs.major_radius)}`);
+  svg += dlabel(cx + tubeMid, cy + 15, `r = ${lvIn(inputs.minor_radius)}`);
+  return svgWrap(svg);
+};
+
+/* ---------- Remaining solids (spherical cap, ellipsoid, pyramids, prisms, Platonic solids) ----------
+   Same style as the diagrams above: outline sketch, every dimension labelled with the entered value. */
+function ringPts(n, cx, cy, R, tilt, phase) {
+  const pts = [];
+  for (let i = 0; i < n; i++) {
+    const t = phase + (2 * Math.PI * i) / n;
+    pts.push([cx + R * Math.cos(t), cy + R * tilt * Math.sin(t)]);
+  }
+  return pts;
+}
+function seg(P, Q, hidden = false) {
+  return hidden
+    ? `<line x1="${P[0]}" y1="${P[1]}" x2="${Q[0]}" y2="${Q[1]}" stroke="${DGM.dim}" stroke-width="1" stroke-dasharray="3 3"/>`
+    : line(P[0], P[1], Q[0], Q[1]);
+}
+function hullFill(pts) {
+  return `<polygon points="${pts.map(p => p.join(',')).join(' ')}" fill="${DGM.fill}" stroke="none"/>`;
+}
+function polarPt(cx, cy, r, deg) {
+  return [cx + r * Math.cos(deg * Math.PI / 180), cy + r * Math.sin(deg * Math.PI / 180)];
+}
+
+SOLID_DIAGRAMS.spherical_cap = (inputs) => {
+  const r = parseFloat(inputs.radius), h = parseFloat(inputs.height);
+  if (!(r > 0 && h > 0 && h <= 2 * r)) return null;
+  const cx = DGM.W / 2, cy = DGM.H / 2, R = 72;
+  const hp = h / r * R;
+  const topY = cy - R, baseY = topY + hp;
+  const ap = Math.max(1, Math.sqrt(Math.max(0, R * R - (R - hp) * (R - hp))));
+  const aVal = Math.sqrt(Math.max(0, h * (2 * r - h)));
+  const large = hp > R ? 1 : 0;
+  let svg = `<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="${DGM.dim}" stroke-width="1" stroke-dasharray="3 3"/>`;
+  svg += `<path d="M${cx - ap},${baseY} A${R},${R} 0 ${large} 1 ${cx + ap},${baseY} Z" fill="${DGM.fill}" stroke="${DGM.stroke}" stroke-width="1.6"/>`;
+  svg += `<ellipse cx="${cx}" cy="${baseY}" rx="${ap}" ry="${Math.max(ap * 0.28, 1)}" fill="${DGM.fill}" stroke="${DGM.stroke}" stroke-width="1.6"/>`;
+  // radius of the sphere: centre O to the rim of the cap
+  svg += line(cx, cy, cx + ap, baseY, `stroke="${DGM.accent}" stroke-width="2"`);
+  svg += dot(cx, cy) + dot(cx + ap, baseY, 3, DGM.accent);
+  svg += dlabel(cx - 12, cy + 15, 'O', { color: DGM.stroke });
+  svg += dlabel((cx + cx + ap) / 2 + 18, (cy + baseY) / 2 + 8, `r = ${lvIn(inputs.radius)}`);
+  // cap height: dashed vertical from the top of the cap to its base plane
+  svg += `<line x1="${cx}" y1="${topY}" x2="${cx}" y2="${baseY}" stroke="${DGM.accent}" stroke-width="1.2" stroke-dasharray="4 3"/>`;
+  svg += dlabel(cx - 8, topY + hp / 2, `h = ${lvIn(inputs.height)}`, { anchor: 'end' });
+  svg += dlabel(cx + ap + 6, baseY + 14, `a = ${lv(aVal)}`, { anchor: 'start', color: DGM.dim });
+  return svgWrap(svg);
+};
+
+SOLID_DIAGRAMS.ellipsoid = (inputs) => {
+  const cx = DGM.W / 2, cy = DGM.H / 2, A = 95, C = 68;
+  let svg = `<ellipse cx="${cx}" cy="${cy}" rx="${A}" ry="${C}" fill="${DGM.fill}" stroke="${DGM.stroke}" stroke-width="1.6"/>`;
+  svg += `<ellipse cx="${cx}" cy="${cy}" rx="${A}" ry="${A * 0.25}" fill="none" stroke="${DGM.dim}" stroke-width="1" stroke-dasharray="3 3"/>`;
+  svg += `<ellipse cx="${cx}" cy="${cy}" rx="${A * 0.25}" ry="${C}" fill="none" stroke="${DGM.dim}" stroke-width="1" stroke-dasharray="3 3"/>`;
+  const Bp = [cx - 38, cy + 22];
+  svg += line(cx, cy, cx + A, cy, `stroke="${DGM.accent}" stroke-width="2"`);
+  svg += line(cx, cy, cx, cy - C, `stroke="${DGM.accent}" stroke-width="2"`);
+  svg += line(cx, cy, Bp[0], Bp[1], `stroke="${DGM.accent}" stroke-width="2"`);
+  svg += dot(cx, cy) + dot(cx + A, cy, 3, DGM.accent) + dot(cx, cy - C, 3, DGM.accent) + dot(Bp[0], Bp[1], 3, DGM.accent);
+  svg += dlabel(cx + A / 2, cy - 13, `a = ${lvIn(inputs.a)}`);
+  svg += dlabel(cx - 8, cy - C / 2, `c = ${lvIn(inputs.c)}`, { anchor: 'end' });
+  svg += dlabel(Bp[0] - 6, Bp[1] + 14, `b = ${lvIn(inputs.b)}`, { anchor: 'end' });
+  return svgWrap(svg);
+};
+
+SOLID_DIAGRAMS.regular_pyramid = (inputs) => {
+  const n = Math.max(3, Math.min(24, parseInt(inputs.num_sides) || 0));
+  const s = parseFloat(inputs.base_side), h = parseFloat(inputs.height);
+  if (!(s > 0 && h > 0)) return null;
+  const Rin = s / (2 * Math.sin(Math.PI / n));
+  const scale = 100 / Math.max(2 * Rin, h);
+  const R = Rin * scale, H = h * scale, tilt = 0.3;
+  const cx = DGM.W / 2, apexY = DGM.H / 2 - H / 2 - R * tilt / 2, baseY = apexY + H;
+  const base = ringPts(n, cx, baseY, R, tilt, Math.PI / 2 + Math.PI / n);
+  const apex = [cx, apexY];
+  const back = p => p[1] < baseY - 0.01;
+  let svg = hullFill(base);
+  for (let i = 0; i < n; i++) {
+    const P = base[i], Q = base[(i + 1) % n];
+    svg += seg(P, Q, back(P) && back(Q));
+    svg += seg(apex, P, back(P));
+  }
+  svg += `<line x1="${cx}" y1="${apexY}" x2="${cx}" y2="${baseY}" stroke="${DGM.accent}" stroke-width="1.2" stroke-dasharray="4 3"/>`;
+  svg += dot(cx, baseY, 3, DGM.accent) + dot(cx, apexY);
+  svg += dlabel(cx - 8, (apexY + baseY) / 2, `h = ${lvIn(inputs.height)}`, { anchor: 'end' });
+  const frontY = Math.max(base[0][1], base[n - 1][1]);
+  svg += dlabel(cx, frontY + 16, `base = ${lvIn(inputs.base_side)}`);
+  svg += dlabel(cx + R * 0.55, baseY - R * tilt - 14, `n = ${n}`, { color: DGM.dim });
+  return svgWrap(svg);
+};
+
+SOLID_DIAGRAMS.regular_prism = (inputs) => {
+  const n = Math.max(3, Math.min(24, parseInt(inputs.num_sides) || 0));
+  const s = parseFloat(inputs.base_side), h = parseFloat(inputs.height);
+  if (!(s > 0 && h > 0)) return null;
+  const Rin = s / (2 * Math.sin(Math.PI / n));
+  const scale = 100 / Math.max(2 * Rin, h);
+  const R = Rin * scale, H = h * scale, tilt = 0.3;
+  const cx = DGM.W / 2, topY = DGM.H / 2 - H / 2, baseY = topY + H;
+  const phase = Math.PI / 2 + Math.PI / n;
+  const bot = ringPts(n, cx, baseY, R, tilt, phase);
+  const top = ringPts(n, cx, topY, R, tilt, phase);
+  const back = p => p[1] < baseY - 0.01;
+  let svg = '';
+  for (let i = 0; i < n; i++) {
+    const P = bot[i], Q = bot[(i + 1) % n];
+    svg += seg(P, Q, back(P) && back(Q));
+    svg += seg(bot[i], top[i], back(bot[i]));
+  }
+  svg += poly(top);
+  const frontY = Math.max(bot[0][1], bot[n - 1][1]);
+  svg += dlabel(cx, frontY + 16, `base = ${lvIn(inputs.base_side)}`);
+  const rightX = Math.max(...bot.map(p => p[0]));
+  svg += dlabel(rightX + 10, (topY + baseY) / 2, `h = ${lvIn(inputs.height)}`, { anchor: 'start' });
+  svg += dlabel(cx, topY - R * tilt - 12, `n = ${n}`, { color: DGM.dim });
+  return svgWrap(svg);
+};
+
+SOLID_DIAGRAMS.triangular_prism = (inputs) => {
+  const a = parseFloat(inputs.a), b = parseFloat(inputs.b), c = parseFloat(inputs.c), h = parseFloat(inputs.height);
+  if (!(a > 0 && b > 0 && c > 0 && h > 0) || !(a + b > c && b + c > a && c + a > b)) return null;
+  const cosA = (b * b + c * c - a * a) / (2 * b * c);
+  const Cu = b * cosA, Cv = b * Math.sqrt(Math.max(0, 1 - cosA * cosA));
+  const minU = Math.min(0, c, Cu), maxU = Math.max(0, c, Cu);
+  const sc = 100 / Math.max(maxU - minU, h);
+  const tilt = 0.45, H = h * sc, depth = Cv * sc * tilt;
+  const cx = DGM.W / 2, baseY = DGM.H / 2 + (H + depth) / 2;
+  const ox = cx - ((minU + maxU) / 2) * sc;
+  const P = (u, v) => [ox + u * sc, baseY - v * sc * tilt];
+  const A0 = P(0, 0), B0 = P(c, 0), C0 = P(Cu, Cv);
+  const up = p => [p[0], p[1] - H];
+  const A1 = up(A0), B1 = up(B0), C1 = up(C0);
+  let svg = seg(A0, B0) + seg(B0, C0, true) + seg(C0, A0, true);
+  svg += seg(A0, A1) + seg(B0, B1) + seg(C0, C1, true);
+  svg += poly([A1, B1, C1]);
+  const ctr = centroidOf([A1, B1, C1]);
+  svg += dlabel((A0[0] + B0[0]) / 2, A0[1] + 16, `c = ${lvIn(inputs.c)}`);
+  svg += outsideLabel(B1, C1, ctr, `a = ${lvIn(inputs.a)}`, 16);
+  svg += outsideLabel(C1, A1, ctr, `b = ${lvIn(inputs.b)}`, 16);
+  svg += dlabel(A0[0] - 8, A0[1] - H / 2, `h = ${lvIn(inputs.height)}`, { anchor: 'end' });
+  return svgWrap(svg);
+};
+
+SOLID_DIAGRAMS.tetrahedron = (inputs) => {
+  const T = [160, 38], L = [68, 170], R = [258, 150], F = [150, 202];
+  let svg = hullFill([T, L, F, R]);
+  svg += seg(T, L) + seg(T, F) + seg(T, R) + seg(L, F) + seg(F, R) + seg(L, R, true);
+  [T, L, R, F].forEach(p => { svg += dot(p[0], p[1], 3); });
+  svg += outsideLabel(L, F, centroidOf([T, L, F, R]), `edge = ${lvIn(inputs.edge)}`, 18);
+  return svgWrap(svg);
+};
+
+SOLID_DIAGRAMS.octahedron = (inputs) => {
+  const T = [160, 28], Bm = [160, 215], L = [60, 125], F = [150, 162], Rr = [260, 115], K = [170, 88];
+  let svg = hullFill([T, Rr, Bm, L]);
+  svg += seg(T, L) + seg(T, F) + seg(T, Rr) + seg(T, K, true);
+  svg += seg(Bm, L) + seg(Bm, F) + seg(Bm, Rr) + seg(Bm, K, true);
+  svg += seg(L, F) + seg(F, Rr) + seg(Rr, K, true) + seg(K, L, true);
+  [T, Bm, L, F, Rr].forEach(p => { svg += dot(p[0], p[1], 3); });
+  svg += outsideLabel(F, Rr, [160, 122], `edge = ${lvIn(inputs.edge)}`, 18);
+  return svgWrap(svg);
+};
+
+SOLID_DIAGRAMS.dodecahedron = (inputs) => {
+  // View straight onto one face: central pentagon, five neighbouring faces, decagon outline.
+  const cx = DGM.W / 2, cy = DGM.H / 2;
+  const P = [], Q = [], M = [], outline = [];
+  for (let k = 0; k < 5; k++) {
+    const d = -90 + 72 * k;
+    P.push(polarPt(cx, cy, 34, d));
+    Q.push(polarPt(cx, cy, 60, d));
+    M.push(polarPt(cx, cy, 76, d + 36));
+  }
+  for (let k = 0; k < 5; k++) outline.push(Q[k], M[k]);
+  let svg = hullFill(outline);
+  for (let k = 0; k < 5; k++) {
+    const k2 = (k + 1) % 5;
+    svg += seg(P[k], P[k2]) + seg(P[k], Q[k]) + seg(Q[k], M[k]) + seg(M[k], Q[k2]);
+  }
+  svg += outsideLabel(Q[2], M[2], [cx, cy], `edge = ${lvIn(inputs.edge)}`, 18);
+  return svgWrap(svg);
+};
+
+SOLID_DIAGRAMS.icosahedron = (inputs) => {
+  // View straight down one vertex: centre vertex, ring of five, outer ring of five.
+  const cx = DGM.W / 2, cy = DGM.H / 2, R = 78;
+  const r1 = [], r2 = [], outline = [];
+  for (let k = 0; k < 5; k++) {
+    r1.push(polarPt(cx, cy, R, -90 + 72 * k));
+    r2.push(polarPt(cx, cy, R, -54 + 72 * k));
+  }
+  for (let k = 0; k < 5; k++) outline.push(r1[k], r2[k]);
+  let svg = hullFill(outline);
+  for (let k = 0; k < 5; k++) {
+    const k2 = (k + 1) % 5;
+    svg += seg([cx, cy], r1[k]) + seg(r1[k], r1[k2]) + seg(r1[k], r2[k]) + seg(r2[k], r1[k2]);
+  }
+  svg += dot(cx, cy, 3);
+  svg += outsideLabel(r1[2], r2[2], [cx, cy], `edge = ${lvIn(inputs.edge)}`, 18);
+  return svgWrap(svg);
+};
+
+function cuboidSVG(l, w, h, lbl = {}) {
+  const cx = DGM.W / 2, cy = DGM.H / 2 + h / 3;
+  const skx = w * 0.5, sky = w * 0.28;
+  const fl = [cx - l / 2, cy]; // front-bottom-left
+  const flt = [cx - l / 2, cy - h];
+  const frt = [cx + l / 2, cy - h];
+  const fr = [cx + l / 2, cy];
+  const bl = [fl[0] + skx, fl[1] - sky];
+  const blt = [flt[0] + skx, flt[1] - sky];
+  const brt = [frt[0] + skx, frt[1] - sky];
+  let svg = '';
+  svg += `<polygon points="${flt.join(',')} ${brt.join(',')} ${bl[0]},${flt[1]+ (bl[1]-flt[1])} ${fl.join(',')}" fill="${DGM.fill}" stroke="none"/>`;
+  svg += line(fl[0], fl[1], fr[0], fr[1]) + line(fr[0], fr[1], frt[0], frt[1]) + line(frt[0], frt[1], flt[0], flt[1]) + line(flt[0], flt[1], fl[0], fl[1]);
+  svg += line(flt[0], flt[1], blt[0], blt[1]) + line(frt[0], frt[1], brt[0], brt[1]) + line(fl[0], fl[1], bl[0], bl[1]);
+  svg += line(blt[0], blt[1], brt[0], brt[1]) + line(blt[0], blt[1], bl[0], bl[1]);
+  svg += `<line x1="${bl[0]}" y1="${bl[1]}" x2="${fr[0] + skx}" y2="${fr[1] - sky}" stroke="${DGM.dim}" stroke-width="1" stroke-dasharray="3 3"/>`;
+  // Labels: length along the front-bottom edge, height on the left edge,
+  // width along the receding bottom-right edge.
+  if (lbl.l) svg += dlabel((fl[0] + fr[0]) / 2, fl[1] + 16, lbl.l);
+  if (lbl.h) svg += dlabel(fl[0] - 6, (fl[1] + flt[1]) / 2, lbl.h, { anchor: 'end' });
+  if (lbl.w) svg += dlabel(fr[0] + skx / 2 + 8, fr[1] - sky / 2 + 12, lbl.w, { anchor: 'start' });
+  return svgWrap(svg);
+}
+function cylinderSVG(r, h, lbl = {}) {
+  const cx = DGM.W / 2, topY = DGM.H / 2 - h / 2, botY = DGM.H / 2 + h / 2;
+  const ry = r * 0.32;
+  let svg = '';
+  svg += `<path d="M${cx - r},${botY} A${r},${ry} 0 0 0 ${cx + r},${botY} L${cx + r},${topY} A${r},${ry} 0 0 0 ${cx - r},${topY} Z" fill="${DGM.fill}" stroke="${DGM.stroke}" stroke-width="1.6"/>`;
+  svg += `<ellipse cx="${cx}" cy="${topY}" rx="${r}" ry="${ry}" fill="${DGM.fill}" stroke="${DGM.stroke}" stroke-width="1.6"/>`;
+  // Radius across the top face, height on the right side.
+  svg += line(cx, topY, cx + r, topY, `stroke="${DGM.accent}" stroke-width="2"`);
+  svg += dot(cx, topY) + dot(cx + r, topY, 3, DGM.accent);
+  if (lbl.r) svg += dlabel(cx + r / 2, topY - 12, lbl.r);
+  if (lbl.h) svg += dlabel(cx + r + 10, (topY + botY) / 2, lbl.h, { anchor: 'start' });
+  return svgWrap(svg);
+}
+function coneSVG(r, h, lbl = {}) {
+  const cx = DGM.W / 2, apexY = DGM.H / 2 - h / 2, baseY = DGM.H / 2 + h / 2;
+  const ry = r * 0.32;
+  let svg = '';
+  svg += `<path d="M${cx - r},${baseY} A${r},${ry} 0 0 0 ${cx + r},${baseY} L${cx},${apexY} Z" fill="${DGM.fill}" stroke="${DGM.stroke}" stroke-width="1.6"/>`;
+  svg += `<path d="M${cx - r},${baseY} A${r},${ry} 0 0 0 ${cx + r},${baseY}" fill="none" stroke="${DGM.stroke}" stroke-width="1.6" stroke-dasharray="3 3"/>`;
+  // Dashed vertical height from apex to the base centre, plus the radius.
+  svg += `<line x1="${cx}" y1="${apexY}" x2="${cx}" y2="${baseY}" stroke="${DGM.accent}" stroke-width="1.2" stroke-dasharray="4 3"/>`;
+  svg += line(cx, baseY, cx + r, baseY, `stroke="${DGM.accent}" stroke-width="2"`);
+  svg += dot(cx, baseY) + dot(cx, apexY) + dot(cx + r, baseY, 3, DGM.accent);
+  if (lbl.h) svg += dlabel(cx - 8, (apexY + baseY) / 2, lbl.h, { anchor: 'end' });
+  if (lbl.r) svg += dlabel(cx + r / 2, baseY + 16, lbl.r);
+  if (lbl.s) svg += dlabel(cx + r / 2 + 16, (apexY + baseY) / 2 - 8, lbl.s, { anchor: 'start', color: DGM.dim });
+  return svgWrap(svg);
+}
+function pyramidSVG(s, h, lbl = {}) {
+  const cx = DGM.W / 2, cy = DGM.H / 2 + h / 3;
+  const half = s / 2, skx = s * 0.28, sky = s * 0.16;
+  const fl = [cx - half, cy], fr = [cx + half, cy];
+  const bl = [fl[0] + skx, fl[1] - sky], br = [fr[0] + skx, fr[1] - sky];
+  const apex = [cx + skx / 2, cy - h - sky / 2];
+  let svg = '';
+  svg += `<polygon points="${fl.join(',')} ${fr.join(',')} ${br.join(',')} ${bl.join(',')}" fill="${DGM.fill}" stroke="${DGM.stroke}" stroke-width="1.6"/>`;
+  svg += line(fl[0], fl[1], apex[0], apex[1]) + line(fr[0], fr[1], apex[0], apex[1]);
+  svg += `<line x1="${bl[0]}" y1="${bl[1]}" x2="${apex[0]}" y2="${apex[1]}" stroke="${DGM.dim}" stroke-width="1" stroke-dasharray="3 3"/>`;
+  svg += `<line x1="${br[0]}" y1="${br[1]}" x2="${apex[0]}" y2="${apex[1]}" stroke="${DGM.stroke}" stroke-width="1.6"/>`;
+  // Height: dashed vertical from the apex down to the centre of the base.
+  const bc = [(fl[0] + br[0]) / 2, (fl[1] + br[1]) / 2];
+  svg += `<line x1="${apex[0]}" y1="${apex[1]}" x2="${apex[0]}" y2="${bc[1]}" stroke="${DGM.accent}" stroke-width="1.2" stroke-dasharray="4 3"/>`;
+  svg += dot(apex[0], bc[1], 3, DGM.accent);
+  if (lbl.h) svg += dlabel(apex[0] - 8, (apex[1] + bc[1]) / 2, lbl.h, { anchor: 'end' });
+  if (lbl.s) svg += dlabel((fl[0] + fr[0]) / 2, fl[1] + 16, lbl.s);
+  return svgWrap(svg);
+}
+
+function renderDiagram(containerEl, svgOrNull) {
+  containerEl.innerHTML = '';
+  if (!svgOrNull) return;
+  const box = el('div', { class: 'diagram-box', html: svgOrNull });
+  containerEl.appendChild(box);
+}
+
+/* ------------------------------------------------------------------
+   FORMULAS USED -- static reference text per shape/solid, shown
+   alongside every calculation result. These mirror exactly what
+   shapes.py / solids.py compute (see their docstrings), they are not
+   re-derived from the API response.
+   ------------------------------------------------------------------ */
+const SHAPE_FORMULAS = {
+  circle: ['Area = \u03c0r\u00b2', 'Circumference = 2\u03c0r', 'Diameter = 2r'],
+  ellipse: [
+    'Area = \u03c0ab',
+    'Perimeter \u2248 \u03c0(a+b)(1 + 3h/(10+\u221a(4\u22123h))), where h = (a\u2212b)\u00b2/(a+b)\u00b2  (Ramanujan\u2019s 2nd approximation)',
+    'Eccentricity = \u221a(1 \u2212 b\u00b2/a\u00b2)',
+  ],
+  circle_sector: ['Area = \u00bd r\u00b2\u03b8  (\u03b8 in radians)', 'Arc length = r\u03b8', 'Perimeter = 2r + arc length'],
+  circle_segment: ['Area = \u00bd r\u00b2(\u03b8 \u2212 sin\u03b8)', 'Chord length = 2r\u00b7sin(\u03b8/2)', 'Arc length = r\u03b8'],
+  triangle: [
+    'Area = \u221a(s(s\u2212a)(s\u2212b)(s\u2212c))  (Heron\u2019s formula), s = (a+b+c)/2',
+    'Perimeter = a + b + c',
+    'Angle A = cos\u207b\u00b9((b\u00b2+c\u00b2\u2212a\u00b2)/(2bc))  (Law of Cosines \u2014 same pattern for B, C)',
+  ],
+  rectangle: ['Area = length \u00d7 width', 'Perimeter = 2(length + width)', 'Diagonal = \u221a(length\u00b2 + width\u00b2)'],
+  square: ['Area = side\u00b2', 'Perimeter = 4 \u00d7 side', 'Diagonal = side\u221a2'],
+  parallelogram: ['Area = base \u00d7 height', 'Perimeter = 2(base + side)'],
+  rhombus: ['Area = (d\u2081 \u00d7 d\u2082) / 2', 'Side = \u221a((d\u2081/2)\u00b2 + (d\u2082/2)\u00b2)', 'Perimeter = 4 \u00d7 side'],
+  trapezoid: ['Area = ((base\u2081 + base\u2082)/2) \u00d7 height', 'Perimeter = base\u2081 + base\u2082 + side\u2081 + side\u2082  (only if both legs are given)'],
+  regular_polygon: [
+    'Area = (n \u00b7 s\u00b2) / (4 \u00b7 tan(\u03c0/n))',
+    'Perimeter = n \u00d7 s',
+    'Interior angle = (n\u22122) \u00d7 180\u00b0 / n',
+    'Apothem = s / (2 \u00b7 tan(\u03c0/n))',
+    'Circumradius = s / (2 \u00b7 sin(\u03c0/n))',
+  ],
+  polygon: ['Area = \u00bd |\u03a3(x\u1d62y\u1d62\u208a\u2081 \u2212 x\u1d62\u208a\u2081y\u1d62)|  (Shoelace formula)', 'Perimeter = \u03a3 distance between consecutive vertices'],
+  polygon_from_sides_angles: [
+    'Vertices reconstructed by walking each side, turning by the exterior angle (180\u00b0 \u2212 interior angle) after each one',
+    'Area / Perimeter then computed on those vertices via the Shoelace formula',
+  ],
+  cyclic_polygon: [
+    'Each side s\u1d62 subtends a central angle \u03b8\u1d62 = 2\u00b7sin\u207b\u00b9(s\u1d62 / 2R) at the circumradius R',
+    'R is solved (by bisection) so that \u03a3\u03b8\u1d62 = 360\u00b0',
+    'Area = \u03a3 \u00bd R\u00b2 sin(\u03b8\u1d62)  (generalises Heron\u2019s / Brahmagupta\u2019s formula)',
+  ],
+};
+const SOLID_FORMULAS = {
+  sphere: ['Volume = (4/3)\u03c0r\u00b3', 'Surface area = 4\u03c0r\u00b2'],
+  cube: ['Volume = side\u00b3', 'Surface area = 6 \u00b7 side\u00b2', 'Space diagonal = side\u00b7\u221a3'],
+  cuboid: [
+    'Volume = length \u00d7 width \u00d7 height',
+    'Surface area = 2(lw + wh + hl)',
+    'Space diagonal = \u221a(l\u00b2 + w\u00b2 + h\u00b2)',
+  ],
+  cylinder: [
+    'Volume = \u03c0r\u00b2h',
+    'Base area = \u03c0r\u00b2',
+    'Lateral surface area = 2\u03c0rh',
+    'Total surface area = lateral + 2 \u00d7 base',
+  ],
+  cone: [
+    'Slant height (l) = \u221a(r\u00b2 + h\u00b2)',
+    'Volume = (1/3)\u03c0r\u00b2h',
+    'Base area = \u03c0r\u00b2',
+    'Lateral surface area = \u03c0 \u00b7 r \u00b7 l',
+    'Total surface area = lateral + base',
+  ],
+  square_pyramid: [
+    'Base area = s\u00b2',
+    'Volume = (1/3) \u00d7 base area \u00d7 h',
+    'Slant height = \u221a(h\u00b2 + (s/2)\u00b2)  (apex to midpoint of a base edge)',
+    'Lateral surface area = 2 \u00d7 s \u00d7 slant height  (4 triangular faces)',
+    'Total surface area = base area + lateral surface area',
+    'Lateral edge length = \u221a(h\u00b2 + 2(s/2)\u00b2)  (apex to a base corner)',
+  ],
+  hemisphere: ['Volume = (2/3)πr³', 'Curved surface area = 2πr²', 'Total surface area = 3πr²  (curved surface + flat base)'],
+  spherical_cap: [
+    'Base radius a = √(h(2r − h))',
+    'Volume = πh²(3r − h) / 3',
+    'Curved surface area = 2πrh',
+    'Total surface area = curved + πa²  (flat base disc)',
+  ],
+  ellipsoid: [
+    'Volume = (4/3)πabc',
+    'Surface area ≈ 4π((aᵖbᵖ + aᵖcᵖ + bᵖcᵖ)/3)^(1/p), p = 1.6075  (Thomsen approximation, error below about 1.1%)',
+  ],
+  torus: [
+    'Volume = 2π²Rr²',
+    'Surface area = 4π²Rr',
+    'R = distance from the centre of the hole to the middle of the tube, r = radius of the tube (r ≤ R)',
+  ],
+  truncated_cone: [
+    'Slant height = √(h² + (r₁ − r₂)²)',
+    'Volume = (πh/3)(r₁² + r₁r₂ + r₂²)',
+    'Lateral surface area = π(r₁ + r₂) × slant height',
+    'Total surface area = lateral + πr₁² + πr₂²',
+  ],
+  regular_pyramid: [
+    'Base area = n·s² / (4·tan(π/n))',
+    'Volume = (1/3) × base area × h',
+    'Apothem = s / (2·tan(π/n))',
+    'Slant height = √(h² + apothem²)',
+    'Lateral surface area = ½ × n × s × slant height',
+    'Total surface area = base area + lateral surface area',
+    'Lateral edge length = √(h² + R²), R = s / (2·sin(π/n))',
+  ],
+  regular_prism: [
+    'Base area = n·s² / (4·tan(π/n))',
+    'Volume = base area × h',
+    'Lateral surface area = n × s × h',
+    'Total surface area = lateral + 2 × base area',
+  ],
+  triangular_prism: [
+    'Base area = √(p(p−a)(p−b)(p−c))  (Heron), p = (a+b+c)/2',
+    'Volume = base area × h',
+    'Lateral surface area = (a + b + c) × h',
+    'Total surface area = lateral + 2 × base area',
+  ],
+  tetrahedron: ['Volume = a³ / (6√2)', 'Surface area = √3·a²', 'Height = a√(2/3)', 'Circumradius = a√6 / 4', 'Inradius = a√6 / 12'],
+  octahedron: ['Volume = (√2/3)·a³', 'Surface area = 2√3·a²', 'Circumradius = a / √2', 'Inradius = a / √6'],
+  dodecahedron: ['Volume = (15 + 7√5)/4 · a³', 'Surface area = 3√(25 + 10√5) · a²', 'Circumradius = a√3(1 + √5) / 4', 'Inradius = (a/2)√((25 + 11√5)/10)'],
+  icosahedron: ['Volume = 5(3 + √5)/12 · a³', 'Surface area = 5√3 · a²', 'Circumradius = (a/4)√(10 + 2√5)', 'Inradius = √3(3 + √5)/12 · a'],
+};
+function renderFormulas(containerEl, formulaList) {
+  if (!formulaList || !formulaList.length) return;
+  const box = el('div', { class: 'formula-box' });
+  box.appendChild(el('h4', { text: 'Formulas used' }));
+  formulaList.forEach(f => box.appendChild(el('div', { class: 'formula-row', text: f })));
+  containerEl.appendChild(box);
+}
+
+/* ==================================================================
+   ENCYCLOPEDIA PAGE
+   ================================================================== */
+/* ---- Diagram for a looked-up center: reference triangle + the center X(n) ---- */
+const ETC_DEFAULT_TRIANGLE = [[0, 0], [7, 0], [2, 5]];
+
+function parseEtcTriangle(raw) {
+  const nums = (raw.match(/-?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi) || []).map(Number);
+  if (nums.length !== 6 || nums.some(n => !isFinite(n))) return null;
+  return [[nums[0], nums[1]], [nums[2], nums[3]], [nums[4], nums[5]]];
+}
+
+// Like fitPoints, but also returns the scale so circles can be drawn to size.
+function makeFit(pts) {
+  const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+  const w = Math.max(maxX - minX, 1e-6), h = Math.max(maxY - minY, 1e-6);
+  const availW = DGM.W - 2 * DGM.pad, availH = DGM.H - 2 * DGM.pad;
+  const scale = Math.min(availW / w, availH / h);
+  const offX = DGM.pad + (availW - w * scale) / 2;
+  const offY = DGM.pad + (availH - h * scale) / 2;
+  return { scale, map: ([x, y]) => [offX + (x - minX) * scale, DGM.H - (offY + (y - minY) * scale)] };
+}
+
+function diagramTriangleCenter(tri, pos, id, unverified = false) {
+  const [A0, B0, C0] = tri;
+  const P0 = [pos.x, pos.y];
+  const dist = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1]);
+  const a = dist(B0, C0), b = dist(C0, A0), c = dist(A0, B0);
+  const K = Math.abs((B0[0] - A0[0]) * (C0[1] - A0[1]) - (C0[0] - A0[0]) * (B0[1] - A0[1])) / 2;
+  const s = (a + b + c) / 2;
+
+  // X(1) = incenter -> show the incircle; X(3) = circumcenter -> show the circumcircle.
+  let ring = null;
+  if (id === 1 && K > 0) ring = { r: K / s };
+  if (id === 3 && K > 0) ring = { r: (a * b * c) / (4 * K) };
+
+  const bounds = [A0, B0, C0, P0];
+  if (ring) bounds.push([P0[0] - ring.r, P0[1] - ring.r], [P0[0] + ring.r, P0[1] + ring.r]);
+  const fit = makeFit(bounds);
+  const A = fit.map(A0), B = fit.map(B0), C = fit.map(C0), P = fit.map(P0);
+  const ctr = centroidOf([A, B, C]);
+
+  let svg = '';
+  if (ring) {
+    svg += `<circle cx="${P[0]}" cy="${P[1]}" r="${ring.r * fit.scale}" fill="none" stroke="${DGM.dim}" stroke-width="1.2" stroke-dasharray="5 3"/>`;
+  }
+  svg += poly([A, B, C]);
+  // Dashed lines from each vertex to the center.
+  [A, B, C].forEach(V => {
+    svg += `<line x1="${V[0]}" y1="${V[1]}" x2="${P[0]}" y2="${P[1]}" stroke="${DGM.accent}" stroke-width="1.1" stroke-dasharray="4 3"/>`;
+  });
+  svg += dot(...A) + dot(...B) + dot(...C);
+
+  // Vertex letters, pushed outward from the triangle's middle.
+  const vlabel = (V, letter) => {
+    const dx = V[0] - ctr[0], dy = V[1] - ctr[1], l = Math.hypot(dx, dy) || 1;
+    return dlabel(V[0] + dx / l * 14, V[1] + dy / l * 14, letter, { color: DGM.stroke, size: 13 });
+  };
+  svg += vlabel(A, 'A') + vlabel(B, 'B') + vlabel(C, 'C');
+
+  // The center itself.
+  // An unverified position is drawn as a hollow, dashed marker with a "?".
+  svg += unverified
+    ? `<circle cx="${P[0]}" cy="${P[1]}" r="5" fill="#ffffff" stroke="${DGM.accent}" stroke-width="1.6" stroke-dasharray="2 2"/>`
+    : dot(P[0], P[1], 4.5, DGM.accent);
+  const nearVertex = Math.min(...[A, B, C].map(V => Math.hypot(V[0] - P[0], V[1] - P[1])));
+  let dx = P[0] - ctr[0], dy = P[1] - ctr[1];
+  if (nearVertex < 14) { dx = -dx; dy = -dy; }   // sits on a vertex: put the label inside instead
+  if (Math.hypot(dx, dy) < 1) { dx = 1; dy = -1; }
+  const l2 = Math.hypot(dx, dy);
+  svg += dlabel(P[0] + dx / l2 * 18, P[1] + dy / l2 * 18, `X(${id})${unverified ? '?' : ''}`, { color: DGM.accent, size: 13 });
+
+  return { svg: svgWrap(svg), ring: ring ? (id === 1 ? 'incircle' : 'circumcircle') : null };
+}
+
+// Fallback drawing: just the reference triangle, used when a center's position
+// cannot be worked out, so the page still shows a diagram with a clear reason.
+function diagramTriangleOnly(tri) {
+  const [A, B, C] = fitPoints(tri);
+  const ctr = centroidOf([A, B, C]);
+  let svg = poly([A, B, C]) + dot(...A) + dot(...B) + dot(...C);
+  const vlabel = (V, letter) => {
+    const dx = V[0] - ctr[0], dy = V[1] - ctr[1], l = Math.hypot(dx, dy) || 1;
+    return dlabel(V[0] + dx / l * 14, V[1] + dy / l * 14, letter, { color: DGM.stroke, size: 13 });
+  };
+  return svgWrap(svg + vlabel(A, 'A') + vlabel(B, 'B') + vlabel(C, 'C'));
+}
+
+async function loadEtcDiagram(info, holder) {
+  holder.innerHTML = '';
+  const note = (t) => { holder.innerHTML = ''; holder.appendChild(el('p', { class: 'etc-note', text: t })); };
+  holder.appendChild(el('div', { class: 'loading-note', text: 'Drawing diagram\u2026' }));
+  try {
+    const raw = document.getElementById('etcTriangle').value.trim();
+    const tri = raw ? parseEtcTriangle(raw) : ETC_DEFAULT_TRIANGLE;
+    if (!tri) { note('Could not read the triangle. Use the format (0,0),(7,0),(2,5).'); return; }
+    const triParam = tri.map(p => `(${p[0]},${p[1]})`).join(',');
+    // Verified centers use the fast database formula; every other center is
+    // located from its ETC entry (formula or construction) via /position.
+    const endpoint = info.supports_calculation ? 'center' : 'position';
+    const { data } = await apiGet(`/${endpoint}/${info.kimberling_id}?triangle=${encodeURIComponent(triParam)}`);
+    if (data.status !== 'ok') {
+      renderDiagram(holder, diagramTriangleOnly(tri));
+      holder.appendChild(el('div', { class: 'diagram-caption', text:
+        `X(${info.kimberling_id}) could not be placed on this triangle \u2014 showing triangle ABC only` }));
+      holder.appendChild(el('p', { class: 'etc-note', text: data.message || 'Could not compute this center for that triangle.' }));
+      return;
+    }
+
+    const pos = data.cartesian_position || data.position;
+    // /center (verified database) has no 'confidence' field: it is hand-verified.
+    const confidence = data.confidence || 'hand_verified';
+    const unverified = confidence === 'unverified';
+    const d = diagramTriangleCenter(tri, pos, info.kimberling_id, unverified);
+    renderDiagram(holder, d.svg);
+    holder.appendChild(el('div', { class: 'diagram-caption', text:
+      `X(${info.kimberling_id}) on triangle ABC` + (d.ring ? ` \u2014 dashed circle is the ${d.ring}` : '') + ' \u2014 drawn to scale' +
+      (unverified ? ' \u2014 position UNVERIFIED' : '') }));
+    const box = el('div', { class: 'readout' });
+    box.appendChild(readoutRow('position (x, y)', `(${fmt(pos.x)}, ${fmt(pos.y)})`, true));
+    box.appendChild(readoutRow('triangle A, B, C', triParam));
+    const CONF_LABEL = {
+      cross_checked: 'cross-checked against ETC\u2019s line list',
+      hand_verified: 'hand-verified formula',
+      unverified: 'unverified',
+    };
+    box.appendChild(readoutRow('confidence', CONF_LABEL[confidence] || confidence));
+    holder.appendChild(box);
+    if (unverified && data.confidence_note) {
+      holder.appendChild(el('p', { class: 'etc-note', text: '\u26a0 ' + data.confidence_note }));
+    }
+  } catch (e) {
+    note('Could not draw the diagram: ' + e.message);
+  }
+}
+
+document.getElementById('etcBtn').addEventListener('click', async () => {
+  const id = parseInt(document.getElementById('etcId').value, 10);
+  const resultEl = document.getElementById('etcResult');
+  resultEl.innerHTML = '';
+  if (!id || id < 1) { resultEl.appendChild(errorBox('Enter a Kimberling number from 1 to 84000.')); return; }
+  resultEl.appendChild(el('div', { class: 'loading-note', text: `Looking up X(${id})…` }));
+  try {
+    const { data } = await apiGet(`/info/${id}`);
+    resultEl.innerHTML = '';
+    if (data.status !== 'ok') { resultEl.appendChild(errorBox(data.message || 'Center not found.')); return; }
+    const box = el('div', { class: 'tool-group' });
+    box.appendChild(el('div', { class: 'etc-name', text: `X(${data.kimberling_id}) — ${data.name || 'Unnamed'}` }));
+    const tags = el('div', { class: 'etc-tags' });
+    if (data.sources.local_verified_database) tags.appendChild(el('span', { class: 'etc-tag local', text: 'verified · calculable' }));
+    if (data.sources.live_etc_fetch) tags.appendChild(el('span', { class: 'etc-tag', text: 'ETC live' }));
+    box.appendChild(tags);
+    const diagramHolder = el('div', { id: 'etcDiagram' });
+    box.appendChild(diagramHolder);
+    if (data.trilinear_formula) box.appendChild(el('div', { class: 'etc-formula-block', text: 'Trilinears: ' + data.trilinear_formula }));
+    if (data.barycentric_formula) box.appendChild(el('div', { class: 'etc-formula-block', text: 'Barycentrics: ' + data.barycentric_formula }));
+    if (data.description) box.appendChild(el('p', { class: 'etc-note', text: data.description }));
+    if (data.etc_fetch_warning) box.appendChild(el('p', { class: 'etc-note', text: data.etc_fetch_warning }));
+    loadEtcDiagram(data, diagramHolder);
+    resultEl.appendChild(box);
+  } catch (e) {
+    resultEl.innerHTML = '';
+    resultEl.appendChild(errorBox(e.message));
+  }
+});
+
+/* ==================================================================
+   SHAPES PAGE
+   ================================================================== */
+const SHAPE_DEFS = {
+  circle: { label: 'Circle', icon: '<svg viewBox="0 0 24 24"><circle class="fill" cx="12" cy="12" r="8"/></svg>', params: [{ key: 'radius', label: 'radius', type: 'number' }] },
+  ellipse: { label: 'Ellipse', icon: '<svg viewBox="0 0 24 24"><ellipse class="fill" cx="12" cy="12" rx="9" ry="6"/></svg>', params: [{ key: 'semi_major', label: 'semi_major' }, { key: 'semi_minor', label: 'semi_minor' }] },
+  circle_sector: { label: 'Circle sector', icon: '<svg viewBox="0 0 24 24"><path class="fill" d="M12 12 L12 3 A9 9 0 0 1 19.8 16.5 Z"/></svg>', params: [{ key: 'radius', label: 'radius' }, { key: 'angle_degrees', label: 'angle_degrees' }] },
+  circle_segment: { label: 'Circle segment', icon: '<svg viewBox="0 0 24 24"><path class="fill" d="M6 9 A9 9 0 0 0 18 9 Z"/></svg>', params: [{ key: 'radius', label: 'radius' }, { key: 'angle_degrees', label: 'angle_degrees' }] },
+  triangle: { label: 'Triangle (sides)', icon: '<svg viewBox="0 0 24 24"><polygon class="fill" points="12,4 20,19 4,19"/></svg>', params: [{ key: 'a', label: 'a' }, { key: 'b', label: 'b' }, { key: 'c', label: 'c' }] },
+  rectangle: { label: 'Rectangle', icon: '<svg viewBox="0 0 24 24"><rect class="fill" x="3" y="7" width="18" height="10"/></svg>', params: [{ key: 'length', label: 'length' }, { key: 'width', label: 'width' }] },
+  square: { label: 'Square', icon: '<svg viewBox="0 0 24 24"><rect class="fill" x="4" y="4" width="16" height="16"/></svg>', params: [{ key: 'side', label: 'side' }] },
+  parallelogram: { label: 'Parallelogram', icon: '<svg viewBox="0 0 24 24"><polygon class="fill" points="8,5 21,5 16,19 3,19"/></svg>', params: [{ key: 'base', label: 'base' }, { key: 'side', label: 'side' }, { key: 'height', label: 'height' }] },
+  rhombus: { label: 'Rhombus', icon: '<svg viewBox="0 0 24 24"><polygon class="fill" points="12,3 20,12 12,21 4,12"/></svg>', params: [{ key: 'd1', label: 'd1' }, { key: 'd2', label: 'd2' }] },
+  trapezoid: { label: 'Trapezoid', icon: '<svg viewBox="0 0 24 24"><polygon class="fill" points="8,5 16,5 21,19 3,19"/></svg>', params: [{ key: 'base1', label: 'base1' }, { key: 'base2', label: 'base2' }, { key: 'height', label: 'height' }, { key: 'side1', label: 'side1 (opt.)', optional: true }, { key: 'side2', label: 'side2 (opt.)', optional: true }] },
+  regular_polygon: { label: 'Regular polygon', icon: '<svg viewBox="0 0 24 24"><polygon class="fill" points="12,3 19,8 16.5,16 7.5,16 5,8"/></svg>', params: [{ key: 'num_sides', label: 'num_sides' }, { key: 'side_length', label: 'side_length' }] },
+  polygon: { label: 'Polygon (vertices)', icon: '<svg viewBox="0 0 24 24"><polygon class="fill" points="5,6 17,4 21,13 14,20 4,16"/></svg>', params: [{ key: 'points', label: 'points e.g. (0,0),(4,0),(4,3),(0,3)', text: true }] },
+  polygon_from_sides_angles: { label: 'Polygon (sides + angles)', icon: '<svg viewBox="0 0 24 24"><polygon class="fill" points="5,6 17,4 21,13 14,20 4,16"/></svg>', params: [{ key: 'sides', label: 'sides e.g. 5,5,5,5,5', text: true }, { key: 'angles_degrees', label: 'angles_degrees e.g. 108,108,108,108,108', text: true }] },
+  cyclic_polygon: { label: 'Cyclic polygon', icon: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-dasharray="2 2"/><polygon class="fill" points="12,3 19,9 16,20 8,20 5,9"/></svg>', params: [{ key: 'sides', label: 'sides e.g. 4,5,6,7', text: true }] },
+};
+
+function buildPicker(pickerId, defs, onSelect) {
+  const pickerEl = document.getElementById(pickerId);
+  Object.entries(defs).forEach(([key, def]) => {
+    const btn = el('button', { 'data-key': key });
+    if (def.icon) btn.innerHTML = def.icon;
+    const labelSpan = el('span', { text: def.label });
+    btn.appendChild(labelSpan);
+    btn.addEventListener('click', () => {
+      pickerEl.querySelectorAll('button').forEach(b => b.classList.remove('sel'));
+      btn.classList.add('sel');
+      onSelect(key, def);
+    });
+    pickerEl.appendChild(btn);
+  });
+}
+
+// `prefix` keeps each form's field ids unique (e.g. 'shape_f_radius' vs
+// 'solid_f_radius') -- several sections share parameter names like
+// length/width/height/radius/side, and without a prefix, getElementById
+// would silently grab whichever section's identically-named field happens
+// to appear first in the page, instead of the one the person just filled in.
+function buildFieldInputs(containerEl, params, prefix) {
+  containerEl.innerHTML = '';
+  const row = el('div', { class: 'field-row' });
+  params.forEach(p => {
+    const field = el('div', { class: 'field' }, [
+      el('label', { for: prefix + '_f_' + p.key, text: p.label + (p.optional ? '' : ' *') }),
+      el('input', { id: prefix + '_f_' + p.key, type: p.text ? 'text' : 'number', step: 'any' }),
+    ]);
+    row.appendChild(field);
+  });
+  containerEl.appendChild(row);
+}
+
+buildPicker('shapePicker', SHAPE_DEFS, (key, def) => {
+  document.getElementById('shapeFormBox').style.display = 'block';
+  document.getElementById('shapeFormTitle').textContent = def.label;
+  document.getElementById('shapeFormDesc').textContent = 'Required: ' + def.params.filter(p => !p.optional).map(p => p.key).join(', ');
+  buildFieldInputs(document.getElementById('shapeFields'), def.params, 'shape');
+  document.getElementById('shapeResult').innerHTML = '';
+  document.getElementById('shapeSolveBtn').dataset.shape = key;
+});
+
+document.getElementById('shapeSolveBtn').addEventListener('click', async () => {
+  const key = document.getElementById('shapeSolveBtn').dataset.shape;
+  if (!key) return;
+  const def = SHAPE_DEFS[key];
+  const params = new URLSearchParams();
+  def.params.forEach(p => {
+    const v = document.getElementById('shape_f_' + p.key).value;
+    if (v !== '') params.set(p.key, v);
+  });
+  const resultEl = document.getElementById('shapeResult');
+  resultEl.innerHTML = '<div class="loading-note">Calculating…</div>';
+  try {
+    const { data } = await apiGet(`/shape/${key}?${params.toString()}`);
+    resultEl.innerHTML = '';
+    if (data.status !== 'ok') { resultEl.appendChild(errorBox(data.message)); return; }
+
+    // Diagram first, so the picture anchors the numbers below it.
+    const inputs = {};
+    def.params.forEach(p => { inputs[p.key] = document.getElementById('shape_f_' + p.key).value; });
+    if (SHAPE_DIAGRAMS[key]) {
+      try {
+        const svg = SHAPE_DIAGRAMS[key](inputs, data);
+        if (svg) {
+          renderDiagram(resultEl, svg);
+          resultEl.appendChild(el('div', { class: 'diagram-caption', text: def.label + ' — drawn to scale' }));
+        }
+      } catch (diagErr) { /* diagram is a bonus, never block the numeric result */ }
+    }
+
+    const box = el('div', { class: 'readout' });
+    Object.entries(data).forEach(([k, v]) => {
+      if (k === 'status' || k === 'inputs' || k === 'shape') return;
+      if (typeof v === 'object' && v !== null) {
+        Object.entries(v).forEach(([kk, vv]) => box.appendChild(readoutRow(k + '.' + kk, vv, kk === 'x' || kk === 'y' ? false : (k === 'area'))));
+      } else {
+        box.appendChild(readoutRow(k, v, k === 'area' || k === 'volume'));
+      }
+    });
+    resultEl.appendChild(box);
+    renderFormulas(resultEl, SHAPE_FORMULAS[key]);
+  } catch (e) {
+    resultEl.innerHTML = '';
+    resultEl.appendChild(errorBox(e.message));
+  }
+});
+
+/* ==================================================================
+   SOLIDS PAGE
+   ================================================================== */
+const SOLID_DEFS = {
+  sphere: { label: 'Sphere', icon: '<svg viewBox="0 0 24 24"><circle class="fill" cx="12" cy="12" r="8"/><ellipse cx="12" cy="12" rx="8" ry="2.6" stroke-dasharray="1.5 1.5"/></svg>', params: [{ key: 'radius', label: 'radius' }] },
+  cube: { label: 'Cube', icon: '<svg viewBox="0 0 24 24"><polygon class="fill" points="4,8 14,8 14,18 4,18"/><polygon class="fill" points="4,8 8,4 18,4 14,8"/><polygon class="fill" points="14,8 18,4 18,14 14,18"/><line x1="4" y1="8" x2="14" y2="8"/></svg>', params: [{ key: 'side', label: 'side' }] },
+  cuboid: { label: 'Cuboid', icon: '<svg viewBox="0 0 24 24"><polygon class="fill" points="3,9 13,9 13,19 3,19"/><polygon class="fill" points="3,9 7,4 21,4 13,9"/><polygon class="fill" points="13,9 21,4 21,13 13,19"/></svg>', params: [{ key: 'length', label: 'length' }, { key: 'width', label: 'width' }, { key: 'height', label: 'height' }] },
+  cylinder: { label: 'Cylinder', icon: '<svg viewBox="0 0 24 24"><ellipse class="fill" cx="12" cy="6" rx="7" ry="2.6"/><path class="fill" d="M5 6 L5 18 A7 2.6 0 0 0 19 18 L19 6"/><ellipse cx="12" cy="18" rx="7" ry="2.6" stroke-dasharray="0"/></svg>', params: [{ key: 'radius', label: 'radius' }, { key: 'height', label: 'height' }] },
+  cone: { label: 'Cone', icon: '<svg viewBox="0 0 24 24"><path class="fill" d="M12 3 L19 18 A7 2.6 0 0 1 5 18 Z"/><ellipse cx="12" cy="18" rx="7" ry="2.6"/></svg>', params: [{ key: 'radius', label: 'radius' }, { key: 'height', label: 'height' }] },
+  square_pyramid: { label: 'Square pyramid', icon: '<svg viewBox="0 0 24 24"><polygon class="fill" points="4,16 12,19 20,16 12,13"/><polygon class="fill" points="12,3 4,16 12,13"/><polygon class="fill" points="12,3 20,16 12,13"/></svg>', params: [{ key: 'base_side', label: 'base_side' }, { key: 'height', label: 'height' }] },
+  hemisphere: { label: 'Hemisphere', icon: '<svg viewBox="0 0 24 24"><path class="fill" d="M4 14 A8 8 0 0 1 20 14 Z"/><ellipse cx="12" cy="14" rx="8" ry="2.6"/></svg>', params: [{ key: 'radius', label: 'radius' }] },
+  spherical_cap: { label: 'Spherical cap', icon: '<svg viewBox="0 0 24 24"><path class="fill" d="M5 16 Q12 4 19 16 Z"/><ellipse cx="12" cy="16" rx="7" ry="2.4"/></svg>', params: [{ key: 'radius', label: 'radius (of the sphere)' }, { key: 'height', label: 'height (of the cap)' }] },
+  ellipsoid: { label: 'Ellipsoid', icon: '<svg viewBox="0 0 24 24"><ellipse class="fill" cx="12" cy="12" rx="9" ry="6"/><ellipse cx="12" cy="12" rx="9" ry="2.2" stroke-dasharray="1.5 1.5"/></svg>', params: [{ key: 'a', label: 'a' }, { key: 'b', label: 'b' }, { key: 'c', label: 'c' }] },
+  torus: { label: 'Torus', icon: '<svg viewBox="0 0 24 24"><ellipse class="fill" cx="12" cy="12" rx="9" ry="6"/><ellipse cx="12" cy="12" rx="4" ry="2"/></svg>', params: [{ key: 'major_radius', label: 'major_radius' }, { key: 'minor_radius', label: 'minor_radius' }] },
+  truncated_cone: { label: 'Truncated cone', icon: '<svg viewBox="0 0 24 24"><path class="fill" d="M8 5 L16 5 L20 18 L4 18 Z"/><ellipse cx="12" cy="5" rx="4" ry="1.5"/><ellipse cx="12" cy="18" rx="8" ry="2.4"/></svg>', params: [{ key: 'bottom_radius', label: 'bottom_radius' }, { key: 'top_radius', label: 'top_radius' }, { key: 'height', label: 'height' }] },
+  regular_pyramid: { label: 'Regular pyramid', icon: '<svg viewBox="0 0 24 24"><polygon class="fill" points="12,3 4,17 12,20 20,17"/><line x1="12" y1="3" x2="12" y2="20"/></svg>', params: [{ key: 'num_sides', label: 'num_sides' }, { key: 'base_side', label: 'base_side' }, { key: 'height', label: 'height' }] },
+  regular_prism: { label: 'Regular prism', icon: '<svg viewBox="0 0 24 24"><polygon class="fill" points="6,8 12,5 18,8 18,17 12,20 6,17"/><line x1="12" y1="5" x2="12" y2="14"/></svg>', params: [{ key: 'num_sides', label: 'num_sides' }, { key: 'base_side', label: 'base_side' }, { key: 'height', label: 'height' }] },
+  triangular_prism: { label: 'Triangular prism', icon: '<svg viewBox="0 0 24 24"><polygon class="fill" points="4,18 12,18 8,9"/><polygon class="fill" points="8,9 12,18 20,15 16,6"/></svg>', params: [{ key: 'a', label: 'a (base side)' }, { key: 'b', label: 'b (base side)' }, { key: 'c', label: 'c (base side)' }, { key: 'height', label: 'height' }] },
+  tetrahedron: { label: 'Tetrahedron', icon: '<svg viewBox="0 0 24 24"><polygon class="fill" points="12,3 3,18 21,18"/><line x1="12" y1="3" x2="13" y2="12"/><line x1="3" y1="18" x2="13" y2="12"/><line x1="21" y1="18" x2="13" y2="12"/></svg>', params: [{ key: 'edge', label: 'edge' }] },
+  octahedron: { label: 'Octahedron', icon: '<svg viewBox="0 0 24 24"><polygon class="fill" points="12,2 21,12 12,22 3,12"/><line x1="3" y1="12" x2="21" y2="12"/><path d="M12 2 L16 12 L12 22 M12 2 L8 12 L12 22"/></svg>', params: [{ key: 'edge', label: 'edge' }] },
+  dodecahedron: { label: 'Dodecahedron', icon: '<svg viewBox="0 0 24 24"><polygon class="fill" points="12,3 19,8 16.5,17 7.5,17 5,8"/><polygon points="12,8 15,10.5 14,14 10,14 9,10.5"/></svg>', params: [{ key: 'edge', label: 'edge' }] },
+  icosahedron: { label: 'Icosahedron', icon: '<svg viewBox="0 0 24 24"><polygon class="fill" points="12,3 20,8 20,16 12,21 4,16 4,8"/><polygon points="12,8 16,14 8,14"/></svg>', params: [{ key: 'edge', label: 'edge' }] },
+};
+buildPicker('solidPicker', SOLID_DEFS, (key, def) => {
+  document.getElementById('solidFormBox').style.display = 'block';
+  document.getElementById('solidFormTitle').textContent = def.label;
+  document.getElementById('solidFormDesc').textContent = 'Required: ' + def.params.map(p => p.key).join(', ');
+  buildFieldInputs(document.getElementById('solidFields'), def.params, 'solid');
+  document.getElementById('solidResult').innerHTML = '';
+  document.getElementById('solidSolveBtn').dataset.solid = key;
+});
+document.getElementById('solidSolveBtn').addEventListener('click', async () => {
+  const key = document.getElementById('solidSolveBtn').dataset.solid;
+  if (!key) return;
+  const def = SOLID_DEFS[key];
+  const params = new URLSearchParams();
+  def.params.forEach(p => {
+    const v = document.getElementById('solid_f_' + p.key).value;
+    if (v !== '') params.set(p.key, v);
+  });
+  const resultEl = document.getElementById('solidResult');
+  resultEl.innerHTML = '<div class="loading-note">Calculating…</div>';
+  try {
+    const { data } = await apiGet(`/solid/${key}?${params.toString()}`);
+    resultEl.innerHTML = '';
+    if (data.status !== 'ok') { resultEl.appendChild(errorBox(data.message)); return; }
+
+    // Diagram first, so the picture anchors the numbers below it.
+    const inputs = {};
+    def.params.forEach(p => { inputs[p.key] = document.getElementById('solid_f_' + p.key).value; });
+    if (SOLID_DIAGRAMS[key]) {
+      try {
+        const svg = SOLID_DIAGRAMS[key](inputs, data);
+        if (svg) {
+          renderDiagram(resultEl, svg);
+          resultEl.appendChild(el('div', { class: 'diagram-caption', text: def.label + ' — not to scale' }));
+        }
+      } catch (diagErr) { /* diagram is a bonus, never block the numeric result */ }
+    }
+
+    const box = el('div', { class: 'readout' });
+    Object.entries(data).forEach(([k, v]) => {
+      if (k === 'status' || k === 'inputs' || k === 'solid') return;
+      box.appendChild(readoutRow(k, v, k === 'volume'));
+    });
+    resultEl.appendChild(box);
+    renderFormulas(resultEl, SOLID_FORMULAS[key]);
+  } catch (e) {
+    resultEl.innerHTML = '';
+    resultEl.appendChild(errorBox(e.message));
+  }
+});
+
+</script>
+</body>
+</html>

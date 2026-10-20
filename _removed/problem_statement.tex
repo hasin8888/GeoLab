@@ -1,0 +1,60 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage[most]{tcolorbox}
+\usepackage{xcolor}
+
+\definecolor{boxframe}{RGB}{30,60,110}
+\definecolor{boxbg}{RGB}{248,249,252}
+\definecolor{headbg}{RGB}{30,60,110}
+
+\newtcolorbox{geomproblem}[1][]{
+    enhanced,
+    colback=boxbg,
+    colframe=boxframe,
+    colbacktitle=headbg,
+    coltitle=white,
+    fonttitle=\bfseries\large,
+    title=Geometric Problem Statement,
+    boxrule=1pt,
+    arc=2mm,
+    top=3mm, bottom=3mm, left=4mm, right=4mm,
+    #1
+}
+
+\begin{document}
+\thispagestyle{empty}
+
+\begin{geomproblem}
+
+\textbf{Given Conditions / Setup}
+\begin{itemize}
+    \item Let $ABC$ be a triangle with incircle of radius $r$.
+    \item Let $P$ be a point on side $BC$ such that $BP = m = 4$ and $PC = n = 3$.
+    \item Let $AP = u = 5$ be the cevian from $A$ to $P$.
+    \item The cevian $AP$ splits $\triangle ABC$ into $\triangle ABP$ and $\triangle ACP$, with inradii $r_2 = 0.9$ and $r_3 = 0.8$ respectively.
+\end{itemize}
+
+\vspace{2mm}
+\textbf{Definitions of Parameters}
+\begin{align*}
+    r &= \text{inradius of the full triangle ABC} \\
+    r_2 &= \text{inradius of sub-triangle ABP} \\
+    r_3 &= \text{inradius of sub-triangle ACP} \\
+    u &= \text{length of cevian AP} \\
+    m &= \text{length of segment BP} \\
+    n &= \text{length of segment PC}
+\end{align*}
+
+\vspace{2mm}
+\textbf{Proof Goal}
+\begin{center}
+\fbox{$\displaystyle \frac{1}{r_2} + \frac{1}{r_3} \;=\; \frac{2}{r} + \frac{u(m+n)}{m\,n\,r}$}
+\end{center}
+
+\vspace{3mm}
+\hfill\textit{\small Date: September 22, 2026 \quad | \quad Author: Hasin Khan}
+
+\end{geomproblem}
+
+\end{document}

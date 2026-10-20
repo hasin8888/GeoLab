@@ -1,0 +1,105 @@
+/*
+ * theme.css  --  shared look for every GeoLab page.
+ *
+ * Each page links this file LAST, after its own <style> block, so the values
+ * here replace the page's old colours and fonts. To change the whole site's
+ * look, edit the tokens in :root below. To go back to the old look, remove
+ * the <link ... theme.css> line from a template.
+ *
+ * Idea: a drafting table. Cool graph-paper white, navy ink, a blue pencil for
+ * structure and a red pencil for the one thing you should look at.
+ */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=STIX+Two+Text:ital,wght@0,400;0,600;1,400&display=swap');
+
+:root {
+  /* ink and paper */
+  --ink: #131b2e;
+  --ink-soft: #43506a;
+  --meta: #5f6d86;
+  --paper: #f4f6f9;
+  --raised: #ffffff;
+  --paper-raised: #ffffff;
+  --line: #d5dce6;
+  --line-strong: #aab6c6;
+
+  /* blue pencil: structure, links, selected tools */
+  --accent: #1f3f94;
+  --accent-soft: #e3eafa;
+  --pine: #1f3f94;
+  --pine-soft: #e3eafa;
+
+  /* red pencil: focus, the one highlighted thing */
+  --clay: #c23b22;
+  --clay-soft: #fbe6e1;
+
+  /* teal: secondary tag colour in the encyclopedia */
+  --blue: #2b7a78;
+  --blue-soft: #dff1ef;
+
+  --select: #2a6df4;
+  --err: #a3352b;
+  --err-soft: #f7e3e0;
+
+  /* type */
+  --serif: 'STIX Two Text', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+  --sans: 'IBM Plex Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+}
+
+body {
+  font-family: var(--serif);
+  background: var(--paper);
+  color: var(--ink);
+}
+::selection { background: var(--accent-soft); color: var(--accent); }
+:focus-visible { outline: 2px solid var(--clay); outline-offset: 2px; }
+
+/* ---------------------------------------------------------- surfaces */
+#left, #rail { background: var(--raised); }                 /* solver inputs, full-app menu */
+#toolbar, #sidebar { background: var(--raised); }           /* geometry workspace */
+#canvasWrap { background-color: #fbfcfe; }
+#hint { background: rgba(255, 255, 255, .92); }
+
+.btn:hover { background: #26324f; }                         /* full app primary button */
+
+.diagram-box {
+  background-color: #fff;
+  background-image:
+    linear-gradient(#e6ebf2 1px, transparent 1px),
+    linear-gradient(90deg, #e6ebf2 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* ------------------------------------------------- sans for tool chrome
+   The solver and workspace set their small UI text in "-apple-system",
+   which is not installed on Windows. These rules give it one real family. */
+#toolbar button.tb-btn,
+#toolbar button#lengthsToggle,
+#toolbar #decLabel,
+#toolbar > a,
+#sidebar h2,
+#sidebar input:not(#renameInput),
+#sidebar select,
+#sidebar #renameHint,
+#sidebar #scaleHint,
+#sidebar #colorHint,
+#objectList .obj-row,
+#objectList .empty,
+#canvasWrap #hint,
+#left h2,
+#left .nav a,
+#left .field input,
+#left .group-title,
+#left .col-head,
+#left .examples button,
+#right h2,
+#right .section h3,
+#right .kv .m,
+#right .step .n,
+#right .step .thm,
+#right .step .uses,
+#right .banner,
+#right .check,
+#saveNote {
+  font-family: var(--sans) !important;
+}
